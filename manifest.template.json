@@ -10,8 +10,8 @@
     "title": "V20 Dice",
     "icon": "%BASE%icon.svg",
     "popover": "%BASE%",
-    "height": 880,
-    "width": 500
+    "height": 700,
+    "width": 410
   },
   "background_url": "%BASE%background.html"
 }

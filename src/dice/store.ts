@@ -4,7 +4,9 @@ import { immer } from "zustand/middleware/immer";
 import { DiceRoll } from "../types/DiceRoll";
 import { getDieFromDice } from "../helpers/getDieFromDice";
 import { DiceTransform } from "../types/DiceTransform";
-import { DiceThrower } from "../helpers/DiceThrower";
+import { DiceThrower, getRandomDiceThrow } from "../helpers/DiceThrower";
+import { generateDiceId } from "../helpers/generateDiceId";
+import { isDie } from "../types/Die";
 import { DiceThrow } from "../types/DiceThrow";
 import { DEFAULT_DIFFICULTY, clampDifficulty } from "../v20/roll";
 
@@ -31,6 +33,8 @@ interface DiceRollState {
   difficulty: number;
   startRoll: (roll: DiceRoll, speedMultiplier?: number) => void;
   clearRoll: (ids?: string) => void;
+  /** Reroll select ids of dice or reroll all dice by passing `undefined` */
+  reroll: (ids?: string[], manualThrows?: Record<string, DiceThrow>) => void;
   finishDieRoll: (id: string, number: number, transform: DiceTransform) => void;
   setDifficulty: (difficulty: number) => void;
 }
@@ -70,6 +74,39 @@ export const useDiceRollStore = create<DiceRollState>()(
         state.rollThrows = {};
         state.difficulty = DEFAULT_DIFFICULTY;
       }),
+    reroll: (ids, manualThrows) => {
+      set((state) => {
+        if (!state.roll) {
+          return;
+        }
+        if (!ids) {
+          // Rerolling everything is a new roll
+          state.difficulty = DEFAULT_DIFFICULTY;
+        }
+        const thrower = new DiceThrower();
+        let index = 0;
+        for (const die of state.roll.dice) {
+          if (isDie(die) && (!ids || ids.includes(die.id))) {
+            delete state.rollValues[die.id];
+            delete state.rollTransforms[die.id];
+            delete state.rollThrows[die.id];
+            const manualThrow = manualThrows?.[die.id];
+            // A new id makes the die a new physics object for everyone watching
+            const id = generateDiceId();
+            die.id = id;
+            state.rollValues[id] = null;
+            state.rollTransforms[id] = null;
+            if (manualThrow) {
+              state.rollThrows[id] = manualThrow;
+            } else if (ids) {
+              state.rollThrows[id] = getRandomDiceThrow();
+            } else {
+              state.rollThrows[id] = thrower.getDiceThrow(index++);
+            }
+          }
+        }
+      });
+    },
     finishDieRoll: (id, number, transform) => {
       set((state) => {
         state.rollValues[id] = number;

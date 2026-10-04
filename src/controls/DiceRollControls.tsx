@@ -13,6 +13,8 @@ import CloseIcon from "@mui/icons-material/CloseRounded";
 import HiddenIcon from "@mui/icons-material/VisibilityOffRounded";
 import RollIcon from "@mui/icons-material/ArrowForwardRounded";
 
+import { RerollDiceIcon } from "../icons/RerollDiceIcon";
+
 import { GradientOverlay } from "./GradientOverlay";
 import { useDiceRollStore } from "../dice/store";
 import { RollResult } from "./RollResult";
@@ -209,6 +211,7 @@ function DicePickedControls() {
 function FinishedRollControls() {
   const roll = useDiceRollStore((state) => state.roll);
   const clearRoll = useDiceRollStore((state) => state.clearRoll);
+  const reroll = useDiceRollStore((state) => state.reroll);
   const difficulty = useDiceRollStore((state) => state.difficulty);
   const setDifficulty = useDiceRollStore((state) => state.setDifficulty);
 
@@ -241,10 +244,18 @@ function FinishedRollControls() {
       >
         <Stack
           direction="row"
-          justifyContent="flex-end"
+          justifyContent="space-between"
           width="100%"
           alignItems="start"
         >
+          <Tooltip title="Перебросить все" sx={{ pointerEvents: "all" }}>
+            <IconButton
+              onClick={() => reroll()}
+              sx={{ pointerEvents: "all", color: "white" }}
+            >
+              <RerollDiceIcon />
+            </IconButton>
+          </Tooltip>
           <Tooltip title="Очистить" sx={{ pointerEvents: "all" }}>
             <IconButton
               onClick={() => clearRoll()}

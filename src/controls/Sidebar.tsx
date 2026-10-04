@@ -10,6 +10,9 @@ import { PluginGate } from "../plugin/PluginGate";
 import { DiceRollSync } from "../plugin/DiceRollSync";
 import { PartyTrays } from "../plugin/PartyTrays";
 import { ResizeObserver as PluginResizeObserver } from "../plugin/ResizeObserver";
+import { RollHistorySync } from "../plugin/RollHistorySync";
+import { OwnRollHistoryButton } from "../plugin/RollHistoryButton";
+import { WindowSizeButton } from "../plugin/WindowSizeButton";
 
 export function Sidebar() {
   return (
@@ -28,8 +31,11 @@ export function Sidebar() {
         <Divider flexItem sx={{ mx: 1 }} />
         <DiceHidden />
         <PluginGate>
+          <OwnRollHistoryButton />
+          <WindowSizeButton />
           <Divider flexItem sx={{ mx: 1 }} />
           <DiceRollSync />
+          <RollHistorySync />
           <PartyTrays />
           <PluginResizeObserver />
         </PluginGate>

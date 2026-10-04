@@ -26,6 +26,7 @@ import { AudioListenerProvider } from "../audio/AudioListenerProvider";
 import { Tray } from "../tray/Tray";
 import { useDebugStore } from "../debug/store";
 import { TraySuspense } from "../tray/TraySuspense";
+import { RollHistoryButton } from "./RollHistoryButton";
 
 export function PlayerTray({
   player,
@@ -71,6 +72,14 @@ export function PlayerTray({
         </TraySuspense>
       </Box>
       <PlayerTrayResults player={player} />
+      {player && (
+        <Box
+          component="div"
+          sx={{ position: "absolute", bottom: 12, left: 12, zIndex: 1 }}
+        >
+          <RollHistoryButton playerId={player.id} color="white" />
+        </Box>
+      )}
       <Box
         sx={{
           position: "absolute",
