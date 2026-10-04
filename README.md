@@ -1,71 +1,44 @@
-# Owlbear Rodeo Dice
+# Кубы и лист персонажа V20 для Owlbear Rodeo
 
-Beautiful 3D dice extension for d20 based systems
+*An Owlbear Rodeo extension for Vampire: The Masquerade 20th Anniversary Edition: 3D d10 dice pools with success counting, a shared roll log and (later) a character sheet. Russian interface. Work in progress.*
 
-![Example](/docs/header.jpg)
+Расширение для [Owlbear Rodeo](https://www.owlbear.rodeo/) под «Вампиры: Маскарад» юбилейной редакции (V20): 3D-кубы d10 с подсчётом успехов, единиц и ботчей, общая лента бросков, позже лист персонажа. Интерфейс на русском. Проект в разработке: сейчас это ещё почти неизменённые кубы оригинала.
 
-## Installing
+## Установка в Owlbear Rodeo
 
-The extension can be installed from the [store page](https://extensions.owlbear.rodeo/dice).
+В профиле Owlbear Rodeo нажать Add Extension и вставить ссылку на манифест:
 
-## How it Works
+```
+https://greenradiation.github.io/owlbear-rodeo-extension-vtm-v20-dice-character-sheet-ru/manifest.json
+```
 
-This project uses [React](https://reactjs.org/) for UI, [Three.js](https://threejs.org/) for rendering and [Rapier](https://rapier.rs/) for physics.
+Потом включить расширение в настройках комнаты.
 
-The physics simulation is used to both generate the animation for the roll as well as the final roll values.
+## На чём основано
 
-> Wait is it really random if physics is used to determine the result? How do I know the dice rolls are fair?
+Код основан на [Owlbear Rodeo Dice](https://github.com/owlbear-rodeo/dice) (Copyright (C) 2023 Owlbear Rodeo, GNU GPLv3): оттуда взяты 3D-кубы, физика, лоток и синхронизация бросков между игроками. История коммитов оригинала сохранена. Изменения относительно оригинала видны в истории после коммита `ccc32be`.
 
-Short answer yes, the dice are fair. Long answer [here's a statistical analysis](https://blog.owlbear.rodeo/are-owlbear-rodeos-dice-fair/) of the rolling methodology.
+Стек: React, Three.js, Rapier, Vite, TypeScript, Owlbear Rodeo SDK.
 
-In order to sync rolls over the network efficiently we rely on the fact the Rapier is a deterministic physics engine. This means that across two different computers we'll get the same result given the same initial parameters.
+## Сборка
 
-So we only need to make sure that all the initial parameters are synced and then each client can run its own simulation and end up with the correct animation.
+Нужны Node.js и Yarn 1.
 
-To try out the dice roller outside of Owlbear Rodeo you can head to <https://dice.owlbear.rodeo/>.
+```
+yarn
+yarn dev
+yarn build
+```
 
-## Building
+Сборка и публикация в GitHub Pages идут автоматически через GitHub Actions при пуше в `main`.
 
-This project uses [Yarn](https://yarnpkg.com/) as a package manager.
+Для разработки внутри Owlbear: запустить `yarn dev` и добавить в Owlbear расширение по адресу `http://localhost:5173/manifest.json`.
 
-To install all the dependencies run:
+## Документы
 
-`yarn`
+- [docs/TASKS.md](docs/TASKS.md) — план работ.
+- [CLAUDE.md](CLAUDE.md) — контекст проекта для Claude Code.
 
-To run in a development mode run:
+## Лицензия и оговорки
 
-`yarn dev`
-
-To make a production build run:
-
-`yarn build`
-
-## Project Structure
-
-All source files can be found in the `src` folder.
-
-If you'd like to create a new dice set with the existing dice styles edit the `diceSets.ts` file in the `sets` folder.
-
-If you'd like to add a new dice style the 3D models for the dice are split across four folders: `materials`, `meshes`, `colliders` and `previews`.
-
-The `materials` folder contains the PBR materials for each dice style.
-
-The `meshes` folder contains the 3D geometry used for the dice.
-
-The `colliders` folder contains the simplified collider geometry for the dice.
-
-The `previews` folder contains 2D image previews for each dice.
-
-All the code specific for the Owlbear Rodeo extension is in the `plugin` folder.
-
-## License
-
-GNU GPLv3
-
-## Contributing
-
-This project is provided as an example of how to use the Owlbear Rodeo SDK. As such it is unlikely that we will accept pull requests for new features.
-
-Instead we encourage you to fork this repository and build the dice roller of your dreams.
-
-Copyright (C) 2023 Owlbear Rodeo
+GNU GPLv3, см. [LICENSE](LICENSE). Vampire: The Masquerade — торговая марка Paradox Interactive. Это фанатский некоммерческий проект.

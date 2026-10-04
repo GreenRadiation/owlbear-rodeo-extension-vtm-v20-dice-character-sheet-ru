@@ -1,0 +1,17 @@
+{
+  "name": "V20 Dice (RU)",
+  "version": "0.1.0",
+  "manifest_version": 1,
+  "author": "GreenRadiation",
+  "homepage_url": "https://github.com/GreenRadiation/owlbear-rodeo-extension-vtm-v20-dice-character-sheet-ru",
+  "icon": "%BASE%logo.png",
+  "description": "3D d10 dice pools for Vampire: The Masquerade V20. Based on Owlbear Rodeo Dice.",
+  "action": {
+    "title": "V20 Dice",
+    "icon": "%BASE%icon.svg",
+    "popover": "%BASE%",
+    "height": 700,
+    "width": 375
+  },
+  "background_url": "%BASE%background.html"
+}
