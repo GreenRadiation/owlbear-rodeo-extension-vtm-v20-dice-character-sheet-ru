@@ -3,7 +3,6 @@ import { DiceQuaternion } from "../types/DiceQuaternion";
 import { DiceVector3 } from "../types/DiceVector3";
 
 import { random } from "./random";
-import { DICE_SCALE } from "../dice/scale";
 
 const MIN_X = -0.3;
 const MAX_X = 0.3;
@@ -19,8 +18,8 @@ const MIN_LAUNCH_VELOCITY = 1;
 const MAX_LAUNCH_VELOCITY = 2;
 const MIN_ANGULAR_VELOCITY = 2;
 const MAX_ANGULAR_VELOCITY = 6;
-/** Closest two dice can start to each other, a bit more than the size of a die */
-const MIN_DISTANCE = 0.25 * DICE_SCALE;
+/** Closest two dice can start to each other, a bit more than the size of the biggest die */
+const MIN_DISTANCE = 0.27;
 
 export function randomPosition(): DiceVector3 {
   return {

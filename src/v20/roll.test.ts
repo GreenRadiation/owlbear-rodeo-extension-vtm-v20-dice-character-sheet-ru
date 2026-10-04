@@ -61,6 +61,26 @@ describe("getRollOutcome", () => {
     });
   });
 
+  it("counts a ten as two successes with a speciality", () => {
+    expect(getRollOutcome([10, 10, 7, 3], 6, true)).toEqual({
+      successes: 5,
+      botch: false,
+    });
+    // Ones cancel the doubled successes one by one
+    expect(getRollOutcome([10, 1, 1, 1], 6, true)).toEqual({
+      successes: 0,
+      botch: false,
+    });
+    // A speciality changes nothing without tens
+    expect(getRollOutcome([9, 7, 1], 6, true)).toEqual(
+      getRollOutcome([9, 7, 1], 6)
+    );
+    expect(getRollOutcome([1, 3], 6, true)).toEqual({
+      successes: 0,
+      botch: true,
+    });
+  });
+
   it("depends on the difficulty", () => {
     const values = [1, 4, 7, 9];
     // 4, 7 and 9 succeed, the one cancels a success

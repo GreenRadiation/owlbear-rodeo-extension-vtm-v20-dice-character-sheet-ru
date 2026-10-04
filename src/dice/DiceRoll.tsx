@@ -9,8 +9,9 @@ import { Die } from "../types/Die";
 import { Dice as DefaultDice } from "./Dice";
 import { PhysicsDice } from "./PhysicsDice";
 import { useDebugStore } from "../debug/store";
+import { DiceScaleContext } from "./scale";
 
-export function DiceRoll({
+function ScaledDiceRoll({
   roll,
   rollThrows,
   onRollFinished,
@@ -121,6 +122,20 @@ export function DiceRoll({
   }
 }
 
-DiceRoll.defaultProps = {
+ScaledDiceRoll.defaultProps = {
   Dice: DefaultDice,
 };
+
+type ScaledDiceRollProps = Parameters<typeof ScaledDiceRoll>[0];
+
+/** A roll of dice, everything inside uses the size of the dice the roll was made with */
+export function DiceRoll(
+  props: Omit<ScaledDiceRollProps, "Dice"> &
+    Partial<Pick<ScaledDiceRollProps, "Dice">>
+) {
+  return (
+    <DiceScaleContext.Provider value={props.roll.scale || 1}>
+      <ScaledDiceRoll {...props} />
+    </DiceScaleContext.Provider>
+  );
+}

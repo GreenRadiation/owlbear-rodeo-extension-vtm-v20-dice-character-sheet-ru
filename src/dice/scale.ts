@@ -1,8 +1,14 @@
+import { createContext, useContext } from "react";
+
 /**
  * Size of the dice relative to the dice of the original Owlbear Rodeo roller.
  * Smaller dice leave more room in the tray for big pools but are harder to read.
- * The meshes and the collider must use the same scale.
- * Everyone watching a roll simulates it, so a change here only works
- * when all the players have the same version of the extension.
+ * Every player picks their own size in the settings. The size is a part of a
+ * roll (`DiceRoll.scale`) because the meshes and the colliders have to use the
+ * same scale for everyone who simulates that roll.
  */
-export const DICE_SCALE = 1;
+export const DiceScaleContext = createContext(1);
+
+export function useDiceScale() {
+  return useContext(DiceScaleContext);
+}

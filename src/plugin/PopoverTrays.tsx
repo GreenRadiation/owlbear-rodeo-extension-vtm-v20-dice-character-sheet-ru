@@ -1,11 +1,17 @@
 import OBR, { Player } from "@owlbear-rodeo/sdk";
 import { useEffect, useState } from "react";
 
-import Box from "@mui/material/Box";
+import Stack from "@mui/material/Stack";
 
-import { PopoverTray } from "./PopoverTray";
+import { PREVIEW_NAME_HEIGHT, PopoverTray } from "./PopoverTray";
 import { getPluginId } from "./getPluginId";
+import { useSettingsStore } from "../settings/store";
 
+/** Space around and between the previews in pixels */
+const PREVIEW_GAP = 8;
+const PREVIEW_MARGIN = 16;
+
+/** Previews of the rolls of the other players in the corner of the screen */
 export function PopoverTrays() {
   const [players, setPlayers] = useState<Player[]>([]);
 
@@ -13,6 +19,9 @@ export function PopoverTrays() {
     OBR.party.getPlayers().then(setPlayers);
   }, []);
   useEffect(() => OBR.party.onChange(setPlayers), []);
+
+  const height = useSettingsStore((state) => state.settings.previewHeight);
+  const enabled = height > 0;
 
   const [visibleTrays, setVisibleTrays] = useState<string[]>([]);
 
@@ -42,38 +51,49 @@ export function PopoverTrays() {
     }
   }
 
-  // Hide popover when no trays are visible
-  const hidden = visibleTrays.length === 0;
+  // Fit the window to the previews, an empty window is hidden
+  const count = enabled ? visibleTrays.length : 0;
   useEffect(() => {
-    if (hidden) {
-      OBR.popover.setHeight(getPluginId("popover"), 0);
-      OBR.popover.setWidth(getPluginId("popover"), 0);
+    const id = getPluginId("popover");
+    if (count === 0) {
+      OBR.popover.setHeight(id, 0);
+      OBR.popover.setWidth(id, 0);
     } else {
-      // Height = Tray + Name + Bottom
-      OBR.popover.setHeight(getPluginId("popover"), 298);
-      // Width = Tray + Right
-      OBR.popover.setWidth(getPluginId("popover"), 266);
+      OBR.popover.setHeight(
+        id,
+        height + PREVIEW_NAME_HEIGHT + PREVIEW_MARGIN * 2
+      );
+      OBR.popover.setWidth(
+        id,
+        count * (height / 2) + (count - 1) * PREVIEW_GAP + PREVIEW_MARGIN * 2
+      );
     }
-  }, [hidden]);
+  }, [count, height]);
+
+  if (!enabled) {
+    return null;
+  }
 
   return (
-    <Box
-      component="div"
-      position="absolute"
-      bottom="0"
-      left="0"
-      right="0"
-      top="0"
-      overflow="hidden"
+    <Stack
+      direction="row-reverse"
+      alignItems="flex-end"
+      gap={`${PREVIEW_GAP}px`}
+      sx={{
+        position: "absolute",
+        right: PREVIEW_MARGIN,
+        bottom: PREVIEW_MARGIN,
+      }}
     >
       {players.map((player) => (
         <PopoverTray
           key={player.connectionId}
           player={player}
+          height={height}
           onToggle={handleTrayToggle}
           onOpen={handleTrayOpen}
         />
       ))}
-    </Box>
+    </Stack>
   );
 }

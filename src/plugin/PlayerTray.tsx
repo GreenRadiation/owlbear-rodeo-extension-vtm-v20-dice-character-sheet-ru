@@ -104,7 +104,8 @@ export function PlayerTray({
 }
 
 function PlayerTrayResults({ player }: { player?: Player }) {
-  const { diceRoll, outcome, values, difficulty } = usePlayerDice(player);
+  const { diceRoll, outcome, values, difficulty, specialty } =
+    usePlayerDice(player);
 
   const [resultsExpanded, setResultsExpanded] = useState(false);
   return (
@@ -119,7 +120,7 @@ function PlayerTrayResults({ player }: { player?: Player }) {
       {outcome !== null && (
         <>
           <Fade in>
-            <GradientOverlay top height={resultsExpanded ? 220 : 140} />
+            <GradientOverlay top height={resultsExpanded ? 250 : 170} />
           </Fade>
           <GradientOverlay />
           <Fade in>
@@ -143,6 +144,7 @@ function PlayerTrayResults({ player }: { player?: Player }) {
                 <RollResult
                   values={values}
                   difficulty={difficulty}
+                  specialty={specialty}
                   expanded={resultsExpanded}
                   onExpand={setResultsExpanded}
                 />

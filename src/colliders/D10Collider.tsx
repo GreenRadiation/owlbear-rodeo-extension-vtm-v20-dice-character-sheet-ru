@@ -1,10 +1,15 @@
+import { useMemo } from "react";
 import { ConvexHullCollider } from "@react-three/rapier";
 
-import { DICE_SCALE } from "../dice/scale";
+import { useDiceScale } from "../dice/scale";
 import { D10_VERTICES } from "./d10Vertices";
 
-const vertices = D10_VERTICES.map((n) => (n / 10) * DICE_SCALE);
-
 export function D10Collider() {
+  const diceScale = useDiceScale();
+  const vertices = useMemo(
+    () => D10_VERTICES.map((n) => (n / 10) * diceScale),
+    [diceScale]
+  );
+
   return <ConvexHullCollider args={[vertices]} />;
 }

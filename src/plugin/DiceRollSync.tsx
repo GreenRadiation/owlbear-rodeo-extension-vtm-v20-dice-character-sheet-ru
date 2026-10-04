@@ -46,6 +46,7 @@ export function DiceRollSync() {
             [getPluginId("rollValues")]: values,
             [getPluginId("rollTransforms")]: transforms,
             [getPluginId("difficulty")]: state.difficulty,
+            [getPluginId("specialty")]: state.specialty,
           });
         }
       }),

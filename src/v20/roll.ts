@@ -29,12 +29,14 @@ export interface RollOutcome {
 /**
  * A die succeeds when its value is at least the difficulty.
  * Every one cancels a success.
- * A ten is a single success: specialities, Willpower and the quirks of
- * damage rolls are left for the players to apply themselves.
+ * With a speciality every ten counts as two successes.
+ * Willpower and the quirks of damage rolls are left for the players
+ * to apply themselves.
  */
 export function getRollOutcome(
   values: number[],
-  difficulty: number
+  difficulty: number,
+  specialty = false
 ): RollOutcome {
   let hits = 0;
   let ones = 0;
@@ -42,7 +44,7 @@ export function getRollOutcome(
     if (value === 1) {
       ones++;
     } else if (value >= difficulty) {
-      hits++;
+      hits += specialty && value === 10 ? 2 : 1;
     }
   }
   return {

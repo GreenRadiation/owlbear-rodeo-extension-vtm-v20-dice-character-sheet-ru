@@ -75,6 +75,12 @@ export function usePlayerDice(player?: Player) {
       : DEFAULT_DIFFICULTY;
   }, [player]);
 
+  /** If the player who rolled is counting tens twice */
+  const specialty = useMemo(
+    () => player?.metadata[getPluginId("specialty")] === true,
+    [player]
+  );
+
   /** Values of the dice that have finished rolling in the 1-10 range */
   const values = useMemo(
     () => Object.values(finishedRollValues || {}).map(faceToValue),
@@ -95,8 +101,9 @@ export function usePlayerDice(player?: Player) {
 
   /** The result of the roll, null while the dice are rolling or hidden */
   const outcome = useMemo(
-    () => (finishedRolling ? getRollOutcome(values, difficulty) : null),
-    [finishedRolling, values, difficulty]
+    () =>
+      finishedRolling ? getRollOutcome(values, difficulty, specialty) : null,
+    [finishedRolling, values, difficulty, specialty]
   );
 
   return {
@@ -107,6 +114,7 @@ export function usePlayerDice(player?: Player) {
     transformsRef,
     finishedRollTransforms,
     difficulty,
+    specialty,
     values,
     outcome,
     finishedRollValues,

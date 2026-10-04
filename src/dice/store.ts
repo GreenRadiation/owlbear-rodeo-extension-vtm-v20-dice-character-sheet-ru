@@ -31,12 +31,15 @@ interface DiceRollState {
    * Goes back to the default with every new roll.
    */
   difficulty: number;
+  /** Count tens of the current roll twice, off again with every new roll */
+  specialty: boolean;
   startRoll: (roll: DiceRoll, speedMultiplier?: number) => void;
   clearRoll: (ids?: string) => void;
   /** Reroll select ids of dice or reroll all dice by passing `undefined` */
   reroll: (ids?: string[], manualThrows?: Record<string, DiceThrow>) => void;
   finishDieRoll: (id: string, number: number, transform: DiceTransform) => void;
   setDifficulty: (difficulty: number) => void;
+  setSpecialty: (specialty: boolean) => void;
 }
 
 export const useDiceRollStore = create<DiceRollState>()(
@@ -46,6 +49,7 @@ export const useDiceRollStore = create<DiceRollState>()(
     rollTransforms: {},
     rollThrows: {},
     difficulty: DEFAULT_DIFFICULTY,
+    specialty: false,
     startRoll: (roll, speedMultiplier?: number) =>
       set((state) => {
         state.roll = roll;
@@ -53,6 +57,7 @@ export const useDiceRollStore = create<DiceRollState>()(
         state.rollTransforms = {};
         state.rollThrows = {};
         state.difficulty = DEFAULT_DIFFICULTY;
+        state.specialty = false;
         // Use a thrower so that the dice of a big pool don't start inside each other
         const thrower = new DiceThrower();
         // Set all values to null
@@ -73,6 +78,7 @@ export const useDiceRollStore = create<DiceRollState>()(
         state.rollTransforms = {};
         state.rollThrows = {};
         state.difficulty = DEFAULT_DIFFICULTY;
+        state.specialty = false;
       }),
     reroll: (ids, manualThrows) => {
       set((state) => {
@@ -82,6 +88,7 @@ export const useDiceRollStore = create<DiceRollState>()(
         if (!ids) {
           // Rerolling everything is a new roll
           state.difficulty = DEFAULT_DIFFICULTY;
+          state.specialty = false;
         }
         const thrower = new DiceThrower();
         let index = 0;
@@ -111,6 +118,11 @@ export const useDiceRollStore = create<DiceRollState>()(
       set((state) => {
         state.rollValues[id] = number;
         state.rollTransforms[id] = transform;
+      });
+    },
+    setSpecialty: (specialty) => {
+      set((state) => {
+        state.specialty = specialty;
       });
     },
     setDifficulty: (difficulty) => {

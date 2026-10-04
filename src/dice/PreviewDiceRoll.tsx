@@ -12,12 +12,16 @@ import { useAudioListener } from "../audio/AudioListenerProvider";
 import { getNextBuffer } from "../audio/getAudioBuffer";
 import { random } from "../helpers/random";
 import { WeightClass } from "../types/WeightClass";
+import { DiceScaleContext } from "./scale";
+import { useSettingsStore } from "../settings/store";
 
 export function PreviewDiceRoll() {
   const pool = useDiceControlsStore((state) => state.pool);
   const diceSet = useDiceControlsStore((state) => state.diceSet);
 
   const dice = useMemo(() => getDiceToRoll(pool, diceSet), [pool, diceSet]);
+
+  const diceScale = useSettingsStore((state) => state.settings.diceScale);
 
   const [diceThrower] = useState(() => new DiceThrower());
   const isDefault = pool === 0;
@@ -79,7 +83,8 @@ export function PreviewDiceRoll() {
   }, [rollPressTime, listener, diceWeight]);
 
   return (
-    <group ref={groupRef} position={[0, -0.8, 0]}>
+    <DiceScaleContext.Provider value={diceScale}>
+      <group ref={groupRef} position={[0, -0.8, 0]}>
       {dice.map((die, index) => {
         const dieThrow = diceThrower.getDiceThrow(index);
         const p = dieThrow.position;
@@ -94,7 +99,8 @@ export function PreviewDiceRoll() {
           />
         );
       })}
-    </group>
+      </group>
+    </DiceScaleContext.Provider>
   );
 }
 

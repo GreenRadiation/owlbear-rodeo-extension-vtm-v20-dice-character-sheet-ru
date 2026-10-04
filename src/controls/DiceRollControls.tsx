@@ -20,6 +20,7 @@ import { useDiceRollStore } from "../dice/store";
 import { RollResult } from "./RollResult";
 import { getDiceToRoll, useDiceControlsStore } from "./store";
 import { faceToValue } from "../v20/roll";
+import { useSettingsStore } from "../settings/store";
 
 const jiggle = keyframes`
 0% { transform: translate(0, 0) rotate(0deg); }
@@ -76,7 +77,8 @@ function DicePickedControls() {
       const dice = getDiceToRoll(pool, diceSet);
       const activeTimeSeconds = (performance.now() - rollPressTime) / 1000;
       const speedMultiplier = Math.max(1, Math.min(10, activeTimeSeconds * 2));
-      startRoll({ dice, hidden }, speedMultiplier);
+      const scale = useSettingsStore.getState().settings.diceScale;
+      startRoll({ dice, hidden, scale }, speedMultiplier);
       resetPool();
     }
     setRollPressTime(null);
@@ -214,6 +216,8 @@ function FinishedRollControls() {
   const reroll = useDiceRollStore((state) => state.reroll);
   const difficulty = useDiceRollStore((state) => state.difficulty);
   const setDifficulty = useDiceRollStore((state) => state.setDifficulty);
+  const specialty = useDiceRollStore((state) => state.specialty);
+  const setSpecialty = useDiceRollStore((state) => state.setSpecialty);
 
   const rollValues = useDiceRollStore((state) => state.rollValues);
   const values = useMemo(() => {
@@ -230,7 +234,7 @@ function FinishedRollControls() {
 
   return (
     <>
-      <GradientOverlay top height={resultsExpanded ? 220 : 140} />
+      <GradientOverlay top height={resultsExpanded ? 250 : 170} />
       <Box
         sx={{
           position: "absolute",
@@ -283,6 +287,8 @@ function FinishedRollControls() {
             values={values}
             difficulty={difficulty}
             onDifficultyChange={setDifficulty}
+            specialty={specialty}
+            onSpecialtyChange={setSpecialty}
             expanded={resultsExpanded}
             onExpand={setResultsExpanded}
           />

@@ -13,6 +13,7 @@ import { ResizeObserver as PluginResizeObserver } from "../plugin/ResizeObserver
 import { RollHistorySync } from "../plugin/RollHistorySync";
 import { OwnRollHistoryButton } from "../plugin/RollHistoryButton";
 import { WindowSizeButton } from "../plugin/WindowSizeButton";
+import { SettingsButton } from "../settings/SettingsButton";
 
 export function Sidebar() {
   return (
@@ -30,6 +31,7 @@ export function Sidebar() {
         <PoolControls />
         <Divider flexItem sx={{ mx: 1 }} />
         <DiceHidden />
+        <SettingsButton />
         <PluginGate>
           <OwnRollHistoryButton />
           <WindowSizeButton />

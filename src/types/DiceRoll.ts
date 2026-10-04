@@ -6,4 +6,9 @@ import { Dice } from "./Dice";
  */
 export interface DiceRoll extends Dice {
   hidden?: boolean;
+  /**
+   * Size of the dice relative to the dice of the original roller (1 if undefined).
+   * Part of the roll because everyone watching has to simulate dice of the same size.
+   */
+  scale?: number;
 }
