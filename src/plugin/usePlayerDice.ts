@@ -1,10 +1,15 @@
 import { Player } from "@owlbear-rodeo/sdk";
 import { useEffect, useMemo, useRef } from "react";
-import { getCombinedDiceValue } from "../helpers/getCombinedDiceValue";
 import { DiceRoll } from "../types/DiceRoll";
 import { DiceThrow } from "../types/DiceThrow";
 import { DiceTransform } from "../types/DiceTransform";
 import { getPluginId } from "./getPluginId";
+import {
+  DEFAULT_DIFFICULTY,
+  clampDifficulty,
+  faceToValue,
+  getRollOutcome,
+} from "../v20/roll";
 
 export function usePlayerDice(player?: Player) {
   const diceRoll = useMemo(() => {
@@ -62,13 +67,19 @@ export function usePlayerDice(player?: Player) {
     return values;
   }, [rollValues]);
 
-  const finalValue = useMemo(() => {
-    if (diceRoll && finishedRollValues) {
-      return getCombinedDiceValue(diceRoll, finishedRollValues);
-    } else {
-      return null;
-    }
-  }, [diceRoll, finishedRollValues]);
+  /** The difficulty the player who rolled is counting successes against */
+  const difficulty = useMemo(() => {
+    const value = player?.metadata[getPluginId("difficulty")];
+    return typeof value === "number"
+      ? clampDifficulty(value)
+      : DEFAULT_DIFFICULTY;
+  }, [player]);
+
+  /** Values of the dice that have finished rolling in the 1-10 range */
+  const values = useMemo(
+    () => Object.values(finishedRollValues || {}).map(faceToValue),
+    [finishedRollValues]
+  );
 
   const finishedRolling = useMemo(() => {
     if (!rollValues) {
@@ -82,6 +93,12 @@ export function usePlayerDice(player?: Player) {
     }
   }, [rollValues]);
 
+  /** The result of the roll, null while the dice are rolling or hidden */
+  const outcome = useMemo(
+    () => (finishedRolling ? getRollOutcome(values, difficulty) : null),
+    [finishedRolling, values, difficulty]
+  );
+
   return {
     diceRoll,
     rollThrows,
@@ -89,7 +106,9 @@ export function usePlayerDice(player?: Player) {
     rollTransforms,
     transformsRef,
     finishedRollTransforms,
-    finalValue,
+    difficulty,
+    values,
+    outcome,
     finishedRollValues,
     finishedRolling,
   };

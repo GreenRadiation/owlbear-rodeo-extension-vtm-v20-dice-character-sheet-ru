@@ -23,7 +23,7 @@ export function DiceHidden() {
 
   return (
     <Tooltip
-      title={hidden ? "Show Roll" : "Hide Roll"}
+      title={hidden ? "Бросок скрыт" : "Бросок виден всем"}
       placement="top"
       disableInteractive
     >

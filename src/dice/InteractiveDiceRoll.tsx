@@ -1,10 +1,10 @@
 import { useEffect, useRef } from "react";
 import { DiceTransform } from "../types/DiceTransform";
 import { DiceRoll } from "./DiceRoll";
-import { InteractiveDice } from "./InteractiveDice";
 import { useDiceRollStore } from "./store";
 
 /** Dice roll based off of the values from the dice roll store */
+// TODO: rename, the dice themselves are no longer interactive
 export function InteractiveDiceRoll() {
   const roll = useDiceRollStore((state) => state.roll);
   const rollThrows = useDiceRollStore((state) => state.rollThrows);
@@ -39,7 +39,6 @@ export function InteractiveDiceRoll() {
       rollThrows={rollThrows}
       finishedTransforms={finishedTransforms}
       onRollFinished={finishDieRoll}
-      Dice={InteractiveDice}
       transformsRef={transformsRef}
     />
   );

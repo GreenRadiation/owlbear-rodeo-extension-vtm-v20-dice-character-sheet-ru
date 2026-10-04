@@ -1,106 +1,68 @@
 import create from "zustand";
 import { immer } from "zustand/middleware/immer";
 import { diceSets } from "../sets/diceSets";
-import { Dice } from "../types/Dice";
 import { DiceSet } from "../types/DiceSet";
 import { Die } from "../types/Die";
 import { generateDiceId } from "../helpers/generateDiceId";
+import { getPluginId } from "../plugin/getPluginId";
 
-export type Advantage = "ADVANTAGE" | "DISADVANTAGE" | null;
-export type DiceCounts = Record<string, number>;
+/** The most dice that can be rolled at once */
+export const MAX_POOL = 16;
+
+const DICE_SET_STORAGE_KEY = getPluginId("dice-set");
 
 interface DiceControlsState {
   diceSet: DiceSet;
-  diceById: Record<string, Die>;
-  defaultDiceCounts: DiceCounts;
-  diceCounts: DiceCounts;
-  diceBonus: number;
-  diceAdvantage: Advantage;
+  /** How many dice will be rolled */
+  pool: number;
   diceHidden: boolean;
   diceRollPressTime: number | null;
-  fairnessTesterOpen: boolean;
   changeDiceSet: (diceSet: DiceSet) => void;
-  resetDiceCounts: () => void;
-  changeDieCount: (id: string, count: number) => void;
-  incrementDieCount: (id: string) => void;
-  decrementDieCount: (id: string) => void;
-  setDiceAdvantage: (advantage: Advantage) => void;
-  setDiceBonus: (bonus: number) => void;
+  resetPool: () => void;
+  /** Add dice to the pool, a negative count removes them */
+  addToPool: (count: number) => void;
   toggleDiceHidden: () => void;
   setDiceRollPressTime: (time: number | null) => void;
-  toggleFairnessTester: () => void;
 }
 
-const initialSet = diceSets[0];
-const initialDiceCounts = getDiceCountsFromSet(initialSet);
-const initialDiceById = getDiceByIdFromSet(initialSet);
+/** Restore the dice set the player picked last time */
+function loadDiceSet(): DiceSet {
+  try {
+    const id = localStorage.getItem(DICE_SET_STORAGE_KEY);
+    return diceSets.find((set) => set.id === id) || diceSets[0];
+  } catch {
+    return diceSets[0];
+  }
+}
+
+function saveDiceSet(diceSet: DiceSet) {
+  try {
+    localStorage.setItem(DICE_SET_STORAGE_KEY, diceSet.id);
+  } catch {
+    // Storage can be unavailable, the choice just won't be remembered
+  }
+}
 
 export const useDiceControlsStore = create<DiceControlsState>()(
   immer((set) => ({
-    diceSet: initialSet,
-    diceById: initialDiceById,
-    defaultDiceCounts: initialDiceCounts,
-    diceCounts: initialDiceCounts,
-    diceBonus: 0,
-    diceAdvantage: null,
+    diceSet: loadDiceSet(),
+    pool: 0,
     diceHidden: false,
     diceRollPressTime: null,
-    fairnessTesterOpen: false,
     changeDiceSet(diceSet) {
+      saveDiceSet(diceSet);
       set((state) => {
-        const counts: DiceCounts = {};
-        const prevCounts = state.diceCounts;
-        const prevDice = state.diceSet.dice;
-        for (let i = 0; i < diceSet.dice.length; i++) {
-          const die = diceSet.dice[i];
-          const prevDie = prevDice[i];
-          // Carry over count if the index and die type match
-          if (prevDie && prevDie.type === die.type) {
-            counts[die.id] = prevCounts[prevDie.id] || 0;
-          } else {
-            counts[die.id] = 0;
-          }
-        }
-        state.diceCounts = counts;
         state.diceSet = diceSet;
-        state.defaultDiceCounts = getDiceCountsFromSet(diceSet);
-        state.diceById = getDiceByIdFromSet(diceSet);
       });
     },
-    resetDiceCounts() {
+    resetPool() {
       set((state) => {
-        state.diceCounts = state.defaultDiceCounts;
+        state.pool = 0;
       });
     },
-    changeDieCount(id, count) {
+    addToPool(count) {
       set((state) => {
-        if (id in state.diceCounts) {
-          state.diceCounts[id] = count;
-        }
-      });
-    },
-    incrementDieCount(id) {
-      set((state) => {
-        if (id in state.diceCounts) {
-          state.diceCounts[id] += 1;
-        }
-      });
-    },
-    decrementDieCount(id) {
-      set((state) => {
-        if (id in state.diceCounts) {
-          state.diceCounts[id] -= 1;
-        }
-      });
-    },
-    setDiceBonus(bonus) {
-      set((state) => {
-        state.diceBonus = bonus;
-      });
-    },
-    setDiceAdvantage(advantage) {
-      set((state) => {
-        state.diceAdvantage = advantage;
+        state.pool = Math.min(MAX_POOL, Math.max(0, state.pool + count));
       });
     },
     toggleDiceHidden() {
@@ -113,90 +75,15 @@ export const useDiceControlsStore = create<DiceControlsState>()(
         state.diceRollPressTime = time;
       });
     },
-    toggleFairnessTester() {
-      set((state) => {
-        state.fairnessTesterOpen = !state.fairnessTesterOpen;
-      });
-    },
   }))
 );
 
-function getDiceCountsFromSet(diceSet: DiceSet) {
-  const counts: Record<string, number> = {};
-  for (const die of diceSet.dice) {
-    counts[die.id] = 0;
-  }
-  return counts;
-}
-
-function getDiceByIdFromSet(diceSet: DiceSet) {
-  const byId: Record<string, Die> = {};
-  for (const die of diceSet.dice) {
-    byId[die.id] = die;
-  }
-  return byId;
-}
-
-/** Generate new dice based off of a set of counts, advantage and die */
-export function getDiceToRoll(
-  counts: DiceCounts,
-  advantage: Advantage,
-  diceById: Record<string, Die>
-) {
-  const dice: (Die | Dice)[] = [];
-  const countEntries = Object.entries(counts);
-  for (const [id, count] of countEntries) {
-    const die = diceById[id];
-    if (!die) {
-      continue;
-    }
-    const { style, type } = die;
-    for (let i = 0; i < count; i++) {
-      if (advantage === null) {
-        if (type === "D100") {
-          // Push a d100 and d10 when rolling a d100
-          dice.push({
-            dice: [
-              { id: generateDiceId(), style, type: "D100" },
-              { id: generateDiceId(), style, type: "D10" },
-            ],
-          });
-        } else {
-          dice.push({ id: generateDiceId(), style, type });
-        }
-      } else {
-        // Rolling with advantage or disadvantage
-        const combination = advantage === "ADVANTAGE" ? "HIGHEST" : "LOWEST";
-        if (type === "D100") {
-          // Push 2 d100s and d10s
-          dice.push({
-            dice: [
-              {
-                dice: [
-                  { id: generateDiceId(), style, type: "D100" },
-                  { id: generateDiceId(), style, type: "D10" },
-                ],
-              },
-              {
-                dice: [
-                  { id: generateDiceId(), style, type: "D100" },
-                  { id: generateDiceId(), style, type: "D10" },
-                ],
-              },
-            ],
-            combination,
-          });
-        } else {
-          dice.push({
-            dice: [
-              { id: generateDiceId(), style, type },
-              { id: generateDiceId(), style, type },
-            ],
-            combination,
-          });
-        }
-      }
-    }
+/** Generate new dice for a pool using the die of the given set */
+export function getDiceToRoll(pool: number, diceSet: DiceSet): Die[] {
+  const { style, type } = diceSet.dice[0];
+  const dice: Die[] = [];
+  for (let i = 0; i < pool; i++) {
+    dice.push({ id: generateDiceId(), style, type });
   }
   return dice;
 }

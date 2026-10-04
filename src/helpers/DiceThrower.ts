@@ -3,6 +3,7 @@ import { DiceQuaternion } from "../types/DiceQuaternion";
 import { DiceVector3 } from "../types/DiceVector3";
 
 import { random } from "./random";
+import { DICE_SCALE } from "../dice/scale";
 
 const MIN_X = -0.3;
 const MAX_X = 0.3;
@@ -10,10 +11,16 @@ const MIN_Y = 1;
 const MAX_Y = 1.2;
 const MIN_Z = -0.8;
 const MAX_Z = 0.8;
+const MIN_TARGET_X = -0.25;
+const MAX_TARGET_X = 0.25;
+const MIN_TARGET_Z = -0.7;
+const MAX_TARGET_Z = 0.7;
 const MIN_LAUNCH_VELOCITY = 1;
 const MAX_LAUNCH_VELOCITY = 2;
 const MIN_ANGULAR_VELOCITY = 2;
 const MAX_ANGULAR_VELOCITY = 6;
+/** Closest two dice can start to each other, a bit more than the size of a die */
+const MIN_DISTANCE = 0.25 * DICE_SCALE;
 
 export function randomPosition(): DiceVector3 {
   return {
@@ -47,16 +54,18 @@ export function randomRotation(): DiceQuaternion {
 
 /**
  * Get a random launch velocity for the dice
- * Always launches from where the dice is towards the center of the tray
- * This better simulates a throwing motion compared to a complete random velocity
+ * Launches from where the dice is towards a random point of the tray.
+ * Aiming every die at the center of the tray makes the dice of a big pool
+ * pile up on each other.
  */
 export function randomLinearVelocity(
   position: DiceVector3,
   speedMultiplier?: number
 ): DiceVector3 {
   // Only use the horizontal plane
-  const { x, z } = position;
-  // Normalize the position to get the direction to [0, 0, 0]
+  const x = position.x - random(MIN_TARGET_X, MAX_TARGET_X);
+  const z = position.z - random(MIN_TARGET_Z, MAX_TARGET_Z);
+  // Normalize to get the direction from the target to the die
   const length = Math.sqrt(x * x + z * z);
   if (isNaN(length) || length === 0) {
     return { x: 0, y: 0, z: 0 };
@@ -124,14 +133,14 @@ export class DiceThrower {
       const lenSquared =
         delta.x * delta.x + delta.y * delta.y + delta.z * delta.z;
       const distance = Math.sqrt(lenSquared);
-      if (distance < 0.25) {
+      if (distance < MIN_DISTANCE) {
         return false;
       }
     }
     return true;
   }
 
-  getDiceThrow(index: number): DiceThrow {
+  getDiceThrow(index: number, speedMultiplier?: number): DiceThrow {
     if (this.history.length > index) {
       return this.history[index];
     }
@@ -143,7 +152,7 @@ export class DiceThrower {
       position = randomPosition();
     }
     const rotation = randomRotation();
-    const linearVelocity = randomLinearVelocity(position);
+    const linearVelocity = randomLinearVelocity(position, speedMultiplier);
     const angularVelocity = randomAngularVelocity();
 
     const diceThrow: DiceThrow = {

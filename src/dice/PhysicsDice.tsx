@@ -4,6 +4,7 @@ import {
   CollisionEnterPayload,
   RigidBody,
   RapierRigidBody,
+  useAfterPhysicsStep,
 } from "@react-three/rapier";
 
 import { Die } from "../types/Die";
@@ -17,13 +18,26 @@ import { getDieDensity } from "../helpers/getDieDensity";
 import { DiceThrow } from "../types/DiceThrow";
 import { DiceTransform } from "../types/DiceTransform";
 import { DiceCollider } from "../colliders/DiceCollider";
+import { getD10TopFaceNormal, isD10Cocked } from "../helpers/d10Faces";
 
 /** Minium linear and angular speed before the dice roll is considered finished */
 const MIN_ROLL_FINISHED_SPEED = 0.005;
 /** Cool down in MS before dice audio can get played again */
 const AUDIO_COOLDOWN = 200;
-/** Force stop the physics roll after 5 seconds */
-const MAX_ROLL_TIME = 5000;
+/** Force stop the physics roll after 8 seconds */
+const MAX_ROLL_TIME = 8000;
+/** How many times a die that came to rest leaning on something gets pushed to lie flat */
+const MAX_NUDGES = 4;
+/** Upwards speed of a nudge */
+const NUDGE_HOP_SPEED = 1.6;
+/** Sideways speed of a nudge */
+const NUDGE_SLIDE_SPEED = 0.9;
+/** Spin of a nudge */
+const NUDGE_SPIN_SPEED = 6;
+/** How much stronger every next nudge of the same die is */
+const NUDGE_ESCALATION = 0.35;
+/** How much every next nudge of the same die turns away from the previous direction, in radians */
+const NUDGE_TURN = 1.2;
 
 function magnitude({ x, y, z }: { x: number; y: number; z: number }) {
   return Math.sqrt(x * x + y * y + z * z);
@@ -88,6 +102,82 @@ export function PhysicsDice({
     }
   }, []);
 
+  /**
+   * Dice in a big pool can come to rest leaning on each other or on a wall
+   * which makes it hard to tell what face is up.
+   * When that happens hop the die away from what it leans on so it lands flat.
+   * This runs inside the physics step and only uses the state of the simulation
+   * so every player watching the roll simulates the exact same nudge.
+   * The nudge doesn't depend on the numbers of the die so the roll stays fair.
+   */
+  const nudgesRef = useRef(0);
+  useAfterPhysicsStep(() => {
+    const rigidBody = rigidBodyRef.current;
+    if (
+      !rigidBody ||
+      lockedRef.current ||
+      fixedTransform ||
+      nudgesRef.current >= MAX_NUDGES
+    ) {
+      return;
+    }
+    const speed = magnitude(rigidBody.linvel()) + magnitude(rigidBody.angvel());
+    const position = rigidBody.translation();
+    if (
+      speed < MIN_ROLL_FINISHED_SPEED &&
+      position.y < 1.5 &&
+      isD10Cocked(rigidBody.rotation())
+    ) {
+      const attempt = nudgesRef.current;
+      nudgesRef.current += 1;
+      if (import.meta.env.DEV) {
+        // Count the nudges to be able to tune them from the browser console
+        const debug = window as unknown as { diceNudges?: number };
+        debug.diceNudges = (debug.diceNudges || 0) + 1;
+      }
+      // The top face of a leaning die tilts away from what the die leans on
+      // so its normal shows the way downhill
+      const normal = getD10TopFaceNormal(rigidBody.rotation());
+      let x = normal.x;
+      let z = normal.z;
+      let length = Math.sqrt(x * x + z * z);
+      if (length < 0.05) {
+        // No clear direction: go to the center of the tray
+        x = -position.x;
+        z = -position.z;
+        length = Math.sqrt(x * x + z * z);
+      }
+      if (length < 0.01) {
+        x = 1;
+        z = 0;
+        length = 1;
+      }
+      x /= length;
+      z /= length;
+      // A die that is still stuck after a nudge is wedged between other dice:
+      // push harder and turn the direction a bit more with every attempt
+      const strength = 1 + attempt * NUDGE_ESCALATION;
+      const turn = attempt * NUDGE_TURN;
+      const turnedX = x * Math.cos(turn) - z * Math.sin(turn);
+      const turnedZ = x * Math.sin(turn) + z * Math.cos(turn);
+      x = turnedX;
+      z = turnedZ;
+      rigidBody.setLinvel(
+        {
+          x: x * NUDGE_SLIDE_SPEED * strength,
+          y: NUDGE_HOP_SPEED * strength,
+          z: z * NUDGE_SLIDE_SPEED * strength,
+        },
+        true
+      );
+      // Spin around the horizontal axis perpendicular to the direction of the hop
+      rigidBody.setAngvel(
+        { x: z * NUDGE_SPIN_SPEED, y: 0, z: -x * NUDGE_SPIN_SPEED },
+        true
+      );
+    }
+  });
+
   const checkRollFinished = useCallback(
     (ignorePhysics?: boolean) => {
       const rigidBody = rigidBodyRef.current;
@@ -99,9 +189,13 @@ export function PhysicsDice({
         const speed = magnitude(linVel) + magnitude(angVel);
         // Ensure that the dice is in the tray
         const validPosition = rigidBody.translation().y < 1.5;
+        // A die that isn't lying flat is about to get nudged by the physics step
+        const settled =
+          nudgesRef.current >= MAX_NUDGES ||
+          !isD10Cocked(rigidBody.rotation());
         if (
           ignorePhysics ||
-          (speed < MIN_ROLL_FINISHED_SPEED && validPosition)
+          (speed < MIN_ROLL_FINISHED_SPEED && validPosition && settled)
         ) {
           const value = getValueFromDiceGroup(group);
           const position = rigidBody.translation();

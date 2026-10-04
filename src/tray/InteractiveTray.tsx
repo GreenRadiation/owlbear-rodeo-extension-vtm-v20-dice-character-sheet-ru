@@ -16,7 +16,6 @@ import { Tray } from "./Tray";
 import { useDebugStore } from "../debug/store";
 import { TraySuspense } from "./TraySuspense";
 import { PreviewDiceRoll } from "../dice/PreviewDiceRoll";
-import { FairnessTester } from "../tests/FairnessTester";
 
 /** Dice tray that controls the dice roll store */
 export function InteractiveTray() {
@@ -65,7 +64,6 @@ export function InteractiveTray() {
         </Canvas>
       </TraySuspense>
       <DiceRollControls />
-      <FairnessTester />
     </Box>
   );
 }

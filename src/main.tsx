@@ -8,6 +8,11 @@ import "simplebar-react/dist/simplebar.min.css";
 import "./fonts/fonts.css";
 import { GlobalStyles } from "./GlobalStyles";
 import { PluginThemeProvider } from "./plugin/PluginThemeProvider";
+import { exposeDebug } from "./debug/expose";
+
+if (import.meta.env.DEV) {
+  exposeDebug();
+}
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>

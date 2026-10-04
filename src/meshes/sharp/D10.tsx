@@ -8,6 +8,7 @@ import { useGLTF } from "@react-three/drei";
 import { GLTF } from "three-stdlib";
 
 import glb from "./d10.glb";
+import { DICE_SCALE } from "../../dice/scale";
 
 type GLTFResult = GLTF & {
   nodes: {
@@ -22,7 +23,7 @@ export const D10 = React.forwardRef<
 >(({ children, ...props }, ref) => {
   const { nodes } = useGLTF(glb) as unknown as GLTFResult;
   return (
-    <group ref={ref} {...props} scale={0.1} dispose={null}>
+    <group ref={ref} {...props} scale={0.1 * DICE_SCALE} dispose={null}>
       <group name="dice">
         <mesh name="d10" castShadow receiveShadow geometry={nodes.d10.geometry}>
           {children}

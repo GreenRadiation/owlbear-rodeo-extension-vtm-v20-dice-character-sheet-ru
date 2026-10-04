@@ -17,6 +17,7 @@ import { AudioListenerProvider } from "../audio/AudioListenerProvider";
 import { Tray } from "../tray/Tray";
 import { TraySuspense } from "../tray/TraySuspense";
 import { AnimatedPlayerCamera } from "./AnimatedPlayerCamera";
+import { formatOutcome } from "../v20/roll";
 
 export function PopoverTray({
   player,
@@ -27,7 +28,7 @@ export function PopoverTray({
   onToggle: (connectionId: string, show: boolean) => void;
   onOpen: (connectionId: string) => void;
 }) {
-  const { diceRoll, finalValue, finishedRolling, finishedRollTransforms } =
+  const { diceRoll, outcome, finishedRolling, finishedRollTransforms } =
     usePlayerDice(player);
 
   const theme = useTheme();
@@ -111,7 +112,7 @@ export function PopoverTray({
               noWrap
             >
               {player?.name}
-              {finishedRolling && <span> | {finalValue}</span>}
+              {outcome && <span> | {formatOutcome(outcome)}</span>}
             </Typography>
           </Paper>
         </ButtonBase>

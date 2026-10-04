@@ -3,9 +3,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 
 import { getDiceToRoll, useDiceControlsStore } from "../controls/store";
-import { DiceType } from "../types/DiceType";
-import { getDieFromDice } from "../helpers/getDieFromDice";
-import { DiceRoll } from "../types/DiceRoll";
 import { Dice } from "./Dice";
 import { DiceThrower } from "../helpers/DiceThrower";
 import { DiceVector3 } from "../types/DiceVector3";
@@ -17,27 +14,13 @@ import { random } from "../helpers/random";
 import { WeightClass } from "../types/WeightClass";
 
 export function PreviewDiceRoll() {
-  const counts = useDiceControlsStore((state) => state.diceCounts);
-  const advantage = useDiceControlsStore((state) => state.diceAdvantage);
-  const diceById = useDiceControlsStore((state) => state.diceById);
-  const defaultDiceCounts = useDiceControlsStore(
-    (state) => state.defaultDiceCounts
-  );
+  const pool = useDiceControlsStore((state) => state.pool);
+  const diceSet = useDiceControlsStore((state) => state.diceSet);
 
-  const diceRoll = useMemo<DiceRoll>(() => {
-    return { dice: getDiceToRoll(counts, advantage, diceById) };
-  }, [counts, advantage, diceById]);
-
-  const dice = useMemo(() => getDieFromDice(diceRoll), [diceRoll]);
+  const dice = useMemo(() => getDiceToRoll(pool, diceSet), [pool, diceSet]);
 
   const [diceThrower] = useState(() => new DiceThrower());
-  const isDefault = useMemo(
-    () =>
-      Object.entries(defaultDiceCounts).every(
-        ([type, count]) => counts[type as DiceType] === count
-      ),
-    [counts, defaultDiceCounts]
-  );
+  const isDefault = pool === 0;
   useEffect(() => {
     if (isDefault) {
       diceThrower.clearHistory();

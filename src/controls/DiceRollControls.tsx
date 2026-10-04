@@ -8,21 +8,16 @@ import Fade from "@mui/material/Fade";
 import { useTheme, keyframes } from "@mui/material/styles";
 import Button from "@mui/material/Button";
 import ButtonBase from "@mui/material/ButtonBase";
-import Typography from "@mui/material/Typography";
 
 import CloseIcon from "@mui/icons-material/CloseRounded";
 import HiddenIcon from "@mui/icons-material/VisibilityOffRounded";
 import RollIcon from "@mui/icons-material/ArrowForwardRounded";
 
-import { RerollDiceIcon } from "../icons/RerollDiceIcon";
-
 import { GradientOverlay } from "./GradientOverlay";
 import { useDiceRollStore } from "../dice/store";
-import { DiceResults } from "./DiceResults";
+import { RollResult } from "./RollResult";
 import { getDiceToRoll, useDiceControlsStore } from "./store";
-import { DiceType } from "../types/DiceType";
-import { useDiceHistoryStore } from "./history";
-import { Die } from "../types/Die";
+import { faceToValue } from "../v20/roll";
 
 const jiggle = keyframes`
 0% { transform: translate(0, 0) rotate(0deg); }
@@ -33,23 +28,7 @@ const jiggle = keyframes`
 `;
 
 export function DiceRollControls() {
-  const defaultDiceCounts = useDiceControlsStore(
-    (state) => state.defaultDiceCounts
-  );
-
-  const counts = useDiceControlsStore((state) => state.diceCounts);
-  const bonus = useDiceControlsStore((state) => state.diceBonus);
-  const advantage = useDiceControlsStore((state) => state.diceAdvantage);
-  // Is currently the default dice state (all counts 0 and advantage/bonus defaults)
-  const isDefault = useMemo(
-    () =>
-      Object.entries(defaultDiceCounts).every(
-        ([type, count]) => counts[type as DiceType] === count
-      ) &&
-      advantage === null &&
-      bonus === 0,
-    [counts, defaultDiceCounts, advantage, bonus]
-  );
+  const pool = useDiceControlsStore((state) => state.pool);
 
   const rollValues = useDiceRollStore((state) => state.rollValues);
   const finishedRolling = useMemo(() => {
@@ -61,7 +40,7 @@ export function DiceRollControls() {
     }
   }, [rollValues]);
 
-  if (!isDefault) {
+  if (pool > 0) {
     return (
       <Fade in>
         <span>
@@ -85,47 +64,20 @@ export function DiceRollControls() {
 function DicePickedControls() {
   const startRoll = useDiceRollStore((state) => state.startRoll);
 
-  const defaultDiceCounts = useDiceControlsStore(
-    (state) => state.defaultDiceCounts
-  );
-  const diceById = useDiceControlsStore((state) => state.diceById);
-  const counts = useDiceControlsStore((state) => state.diceCounts);
+  const pool = useDiceControlsStore((state) => state.pool);
+  const diceSet = useDiceControlsStore((state) => state.diceSet);
   const hidden = useDiceControlsStore((state) => state.diceHidden);
-  const bonus = useDiceControlsStore((state) => state.diceBonus);
-  const setBonus = useDiceControlsStore((state) => state.setDiceBonus);
-  const advantage = useDiceControlsStore((state) => state.diceAdvantage);
-  const setAdvantage = useDiceControlsStore((state) => state.setDiceAdvantage);
-
-  const resetDiceCounts = useDiceControlsStore(
-    (state) => state.resetDiceCounts
-  );
-
-  const pushRecentRoll = useDiceHistoryStore((state) => state.pushRecentRoll);
+  const resetPool = useDiceControlsStore((state) => state.resetPool);
 
   function handleRoll() {
-    if (hasDice && rollPressTime) {
-      const dice = getDiceToRoll(counts, advantage, diceById);
+    if (pool > 0 && rollPressTime) {
+      const dice = getDiceToRoll(pool, diceSet);
       const activeTimeSeconds = (performance.now() - rollPressTime) / 1000;
       const speedMultiplier = Math.max(1, Math.min(10, activeTimeSeconds * 2));
-      startRoll({ dice, bonus, hidden }, speedMultiplier);
-
-      const rolledDiceById: Record<string, Die> = {};
-      for (const id of Object.keys(counts)) {
-        if (!(id in rolledDiceById)) {
-          rolledDiceById[id] = diceById[id];
-        }
-      }
-      pushRecentRoll({ advantage, counts, bonus, diceById: rolledDiceById });
-
-      handleReset();
+      startRoll({ dice, hidden }, speedMultiplier);
+      resetPool();
     }
     setRollPressTime(null);
-  }
-
-  function handleReset() {
-    resetDiceCounts();
-    setBonus(0);
-    setAdvantage(null);
   }
 
   const rollPressTime = useDiceControlsStore(
@@ -151,14 +103,6 @@ function DicePickedControls() {
     }
   }, [rollPressTime]);
 
-  const hasDice = useMemo(
-    () =>
-      !Object.entries(defaultDiceCounts).every(
-        ([type, count]) => counts[type as DiceType] === count
-      ),
-    [counts, defaultDiceCounts]
-  );
-
   const theme = useTheme();
 
   return (
@@ -172,31 +116,26 @@ function DicePickedControls() {
           bottom: 0,
           width: "100%",
           height: "100%",
-          cursor: hasDice ? "pointer" : "",
+          cursor: "pointer",
           backgroundColor: "rgba(0, 0, 0, 0.25)",
           ":focus": {
             outline: 0,
           },
-          ":hover #dice-roll-button": hasDice
-            ? {
-                color: theme.palette.primary.contrastText,
-                width: "100px",
-                "& span": {
-                  transform: "translateX(0)",
-                },
-                backgroundColor: theme.palette.primary.main,
-              }
-            : {},
-          ":active #dice-roll-button": hasDice
-            ? {
-                backgroundColor: theme.palette.primary.dark,
-              }
-            : {},
+          ":hover #dice-roll-button": {
+            color: theme.palette.primary.contrastText,
+            width: "116px",
+            "& span": {
+              transform: "translateX(0)",
+            },
+            backgroundColor: theme.palette.primary.main,
+          },
+          ":active #dice-roll-button": {
+            backgroundColor: theme.palette.primary.dark,
+          },
         }}
         onPointerDown={handlePointerDown}
         onPointerUp={handleRoll}
-        aria-label="roll"
-        disabled={!hasDice}
+        aria-label="бросок"
       >
         <Box
           component="div"
@@ -217,9 +156,9 @@ function DicePickedControls() {
               top: "50%",
               left: "50%",
               transform: "translate(-50%, -50%)",
-              color: hasDice ? "transparent" : "transparent !important",
+              color: "transparent",
               "& span": {
-                transform: "translate(-23px)",
+                transform: "translate(-31px)",
                 color: theme.palette.primary.contrastText,
                 transition: theme.transitions.create("transform"),
               },
@@ -235,12 +174,11 @@ function DicePickedControls() {
             }}
             endIcon={<RollIcon />}
             variant="contained"
-            disabled={!hasDice}
             id="dice-roll-button"
             // @ts-ignore
             component="div"
           >
-            Roll
+            Бросок
           </Button>
         </Box>
       </ButtonBase>
@@ -253,53 +191,16 @@ function DicePickedControls() {
           transform: "translateX(-50%)",
         }}
       >
-        <Tooltip title="Clear" disableInteractive>
+        <Tooltip title="Очистить" disableInteractive>
           <IconButton
             onClick={(e) => {
               e.stopPropagation();
-              handleReset();
+              resetPool();
             }}
           >
             <CloseIcon />
           </IconButton>
         </Tooltip>
-      </Stack>
-      <Stack
-        sx={{
-          position: "absolute",
-          top: 12,
-          left: 24,
-        }}
-      >
-        {advantage && (
-          <Typography
-            textAlign="left"
-            lineHeight="40px"
-            color="white"
-            variant="h6"
-          >
-            {advantage === "ADVANTAGE" ? "Adv" : "Dis"}
-          </Typography>
-        )}
-      </Stack>
-      <Stack
-        sx={{
-          position: "absolute",
-          top: 12,
-          right: 24,
-        }}
-      >
-        {bonus !== 0 && (
-          <Typography
-            textAlign="right"
-            variant="h6"
-            lineHeight="40px"
-            color="white"
-          >
-            {bonus > 0 && "+"}
-            {bonus}
-          </Typography>
-        )}
       </Stack>
     </>
   );
@@ -308,14 +209,15 @@ function DicePickedControls() {
 function FinishedRollControls() {
   const roll = useDiceRollStore((state) => state.roll);
   const clearRoll = useDiceRollStore((state) => state.clearRoll);
-  const reroll = useDiceRollStore((state) => state.reroll);
+  const difficulty = useDiceRollStore((state) => state.difficulty);
+  const setDifficulty = useDiceRollStore((state) => state.setDifficulty);
 
   const rollValues = useDiceRollStore((state) => state.rollValues);
-  const finishedRollValues = useMemo(() => {
-    const values: Record<string, number> = {};
-    for (const [id, value] of Object.entries(rollValues)) {
+  const values = useMemo(() => {
+    const values: number[] = [];
+    for (const value of Object.values(rollValues)) {
       if (value !== null) {
-        values[id] = value;
+        values.push(faceToValue(value));
       }
     }
     return values;
@@ -325,7 +227,7 @@ function FinishedRollControls() {
 
   return (
     <>
-      <GradientOverlay top height={resultsExpanded ? 500 : undefined} />
+      <GradientOverlay top height={resultsExpanded ? 220 : 140} />
       <Box
         sx={{
           position: "absolute",
@@ -339,19 +241,11 @@ function FinishedRollControls() {
       >
         <Stack
           direction="row"
-          justifyContent="space-between"
+          justifyContent="flex-end"
           width="100%"
           alignItems="start"
         >
-          <Tooltip title="Reroll" sx={{ pointerEvents: "all" }}>
-            <IconButton
-              onClick={() => reroll()}
-              sx={{ pointerEvents: "all", color: "white" }}
-            >
-              <RerollDiceIcon />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Clear" sx={{ pointerEvents: "all" }}>
+          <Tooltip title="Очистить" sx={{ pointerEvents: "all" }}>
             <IconButton
               onClick={() => clearRoll()}
               sx={{ pointerEvents: "all", color: "white" }}
@@ -374,15 +268,16 @@ function FinishedRollControls() {
         component="div"
       >
         {roll && (
-          <DiceResults
-            diceRoll={roll}
-            rollValues={finishedRollValues}
+          <RollResult
+            values={values}
+            difficulty={difficulty}
+            onDifficultyChange={setDifficulty}
             expanded={resultsExpanded}
             onExpand={setResultsExpanded}
           />
         )}
         {roll?.hidden && (
-          <Tooltip title="Hidden Roll" sx={{ pointerEvents: "all" }}>
+          <Tooltip title="Скрытый бросок" sx={{ pointerEvents: "all" }}>
             <HiddenIcon htmlColor="white" />
           </Tooltip>
         )}

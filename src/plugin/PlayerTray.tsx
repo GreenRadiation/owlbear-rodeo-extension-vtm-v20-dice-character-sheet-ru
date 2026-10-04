@@ -19,7 +19,7 @@ import HiddenIcon from "@mui/icons-material/VisibilityOffRounded";
 
 import environment from "../environment.hdr";
 import { GradientOverlay } from "../controls/GradientOverlay";
-import { DiceResults } from "../controls/DiceResults";
+import { RollResult } from "../controls/RollResult";
 import { usePlayerDice } from "./usePlayerDice";
 import { PlayerDiceRoll } from "./PlayerDiceRoll";
 import { AudioListenerProvider } from "../audio/AudioListenerProvider";
@@ -95,23 +95,22 @@ export function PlayerTray({
 }
 
 function PlayerTrayResults({ player }: { player?: Player }) {
-  const { diceRoll, finalValue, finishedRollValues, finishedRolling } =
-    usePlayerDice(player);
+  const { diceRoll, outcome, values, difficulty } = usePlayerDice(player);
 
   const [resultsExpanded, setResultsExpanded] = useState(false);
   return (
     <>
       {diceRoll?.hidden && (
         <Backdrop open sx={{ position: "absolute" }}>
-          <Tooltip title="Hidden Roll">
+          <Tooltip title="Скрытый бросок">
             <HiddenIcon htmlColor="white" />
           </Tooltip>
         </Backdrop>
       )}
-      {finalValue !== null && (
+      {outcome !== null && (
         <>
           <Fade in>
-            <GradientOverlay top height={resultsExpanded ? 500 : undefined} />
+            <GradientOverlay top height={resultsExpanded ? 220 : 140} />
           </Fade>
           <GradientOverlay />
           <Fade in>
@@ -132,17 +131,12 @@ function PlayerTrayResults({ player }: { player?: Player }) {
                 width="100%"
                 alignItems="start"
               >
-                {finishedRolling &&
-                  diceRoll &&
-                  finishedRollValues &&
-                  finalValue !== null && (
-                    <DiceResults
-                      diceRoll={diceRoll}
-                      rollValues={finishedRollValues}
-                      expanded={resultsExpanded}
-                      onExpand={setResultsExpanded}
-                    />
-                  )}
+                <RollResult
+                  values={values}
+                  difficulty={difficulty}
+                  expanded={resultsExpanded}
+                  onExpand={setResultsExpanded}
+                />
               </Stack>
             </Box>
           </Fade>
