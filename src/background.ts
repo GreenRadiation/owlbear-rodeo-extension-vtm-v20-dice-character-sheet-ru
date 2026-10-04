@@ -1,8 +1,5 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { getPluginId } from "./plugin/getPluginId";
-import { startHeartbeat } from "./diag/heartbeat";
-
-startHeartbeat("background");
 
 OBR.onReady(() => {
   OBR.popover.open({
