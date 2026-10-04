@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>V20 Dice: диагностика</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #fff;
+        color: #000;
+        font: 14px/1.4 system-ui, sans-serif;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        padding: 12px;
+        box-sizing: border-box;
+        gap: 8px;
+      }
+      .buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      button {
+        font: inherit;
+        padding: 6px 10px;
+        cursor: pointer;
+      }
+      button:disabled {
+        cursor: default;
+      }
+      textarea {
+        flex: 1;
+        width: 100%;
+        box-sizing: border-box;
+        font: 12px/1.35 ui-monospace, Consolas, monospace;
+        resize: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      Нажми кнопки слева направо, дождись слова «готово» после каждой, потом
+      скопируй весь текст и пришли его.
+    </div>
+    <div class="buttons">
+      <button id="tray">1. Лоток</button>
+      <button id="room">2. Лимит комнаты</button>
+      <button id="other">3. Игрок и сцена</button>
+      <button id="select">Выделить всё</button>
+      <button id="close">Закрыть</button>
+    </div>
+    <textarea id="out" readonly></textarea>
+    <script type="module" src="/src/diag/diag.ts"></script>
+  </body>
+</html>

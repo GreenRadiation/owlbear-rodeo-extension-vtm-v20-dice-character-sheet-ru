@@ -8,6 +8,9 @@ import "simplebar-react/dist/simplebar.min.css";
 import "./fonts/fonts.css";
 import { GlobalStyles } from "./GlobalStyles";
 import { PluginThemeProvider } from "./plugin/PluginThemeProvider";
+import { startHeartbeat } from "./diag/heartbeat";
+
+startHeartbeat("tray");
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
