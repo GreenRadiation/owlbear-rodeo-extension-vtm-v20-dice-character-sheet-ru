@@ -9,7 +9,7 @@ import { DiceHidden } from "./DiceHidden";
 import { PluginGate } from "../plugin/PluginGate";
 import { DiceRollSync } from "../plugin/DiceRollSync";
 import { PartyTrays } from "../plugin/PartyTrays";
-import { ResizeObserver as PluginResizeObserver } from "../plugin/ResizeObserver";
+import { TrayWindowSync } from "../plugin/TrayWindowSync";
 import { RollHistorySync } from "../plugin/RollHistorySync";
 import { OwnRollHistoryButton } from "../plugin/RollHistoryButton";
 import { WindowSizeButton } from "../plugin/WindowSizeButton";
@@ -39,7 +39,7 @@ export function Sidebar() {
           <DiceRollSync />
           <RollHistorySync />
           <PartyTrays />
-          <PluginResizeObserver />
+          <TrayWindowSync />
         </PluginGate>
       </Stack>
     </SimpleBar>

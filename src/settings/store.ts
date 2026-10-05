@@ -3,39 +3,58 @@ import create from "zustand";
 import { getPluginId } from "../plugin/getPluginId";
 
 /**
+ * The tray has two modes, small and large, that the player switches between
+ * with a button: small to look at the map, large to look at the dice.
+ * Every mode has its own set of these settings.
+ */
+export interface TrayMode {
+  /** Height of the tray in pixels */
+  height: number;
+  /**
+   * Width of the tray relative to the tray of the original Owlbear Rodeo
+   * roller which is half as wide as it is high. 2 is a square tray.
+   */
+  width: number;
+  /** Size of the dice relative to the dice of the original Owlbear Rodeo roller */
+  diceScale: number;
+}
+
+/**
  * Personal settings of the player, kept in the browser.
  * All the windows of the extension share them: a change made in the tray
  * reaches the window with the previews through the `storage` event.
  */
 export interface Settings {
-  /** Height of the window of the tray in its small and large sizes, the width follows the height */
-  trayHeightSmall: number;
-  trayHeightLarge: number;
-  /** Which of the two sizes of the tray is in use */
+  small: TrayMode;
+  large: TrayMode;
+  /** Which of the two modes of the tray is in use */
   trayLarge: boolean;
   /** Height of the previews of the rolls of other players, 0 turns the previews off */
   previewHeight: number;
-  /** Size of the dice relative to the dice of the original Owlbear Rodeo roller */
-  diceScale: number;
 }
 
 export const MIN_TRAY_HEIGHT = 360;
 export const MAX_TRAY_HEIGHT = 1200;
 export const TRAY_HEIGHT_STEP = 20;
 
+export const MIN_TRAY_WIDTH = 1;
+export const MAX_TRAY_WIDTH = 2;
+export const TRAY_WIDTH_STEP = 0.1;
+/** The width of a tray when nothing else is known, for example of a player who hasn't rolled yet */
+export const DEFAULT_TRAY_WIDTH = 1.2;
+
 /** The choices for the height of the previews, the first one turns them off */
-export const PREVIEW_HEIGHTS = [0, 180, 240, 300, 380, 460];
+export const PREVIEW_HEIGHTS = [0, 180, 240, 300, 380, 460, 560, 680];
 
 export const MIN_DICE_SCALE = 0.7;
 export const MAX_DICE_SCALE = 1.1;
 export const DICE_SCALE_STEP = 0.05;
 
 export const defaultSettings: Settings = {
-  trayHeightSmall: 520,
-  trayHeightLarge: 760,
-  trayLarge: true,
+  small: { height: 560, width: DEFAULT_TRAY_WIDTH, diceScale: 1 },
+  large: { height: 880, width: DEFAULT_TRAY_WIDTH, diceScale: 1 },
+  trayLarge: false,
   previewHeight: 300,
-  diceScale: 1,
 };
 
 const STORAGE_KEY = getPluginId("settings");
@@ -46,36 +65,55 @@ function clamp(value: unknown, min: number, max: number, fallback: number) {
     : fallback;
 }
 
+type Stored = Record<string, unknown>;
+
+function asRecord(value: unknown): Stored {
+  return typeof value === "object" && value !== null ? (value as Stored) : {};
+}
+
+function sanitizeMode(value: unknown, fallback: TrayMode): TrayMode {
+  const stored = asRecord(value);
+  return {
+    height: clamp(
+      stored.height,
+      MIN_TRAY_HEIGHT,
+      MAX_TRAY_HEIGHT,
+      fallback.height
+    ),
+    width: clamp(stored.width, MIN_TRAY_WIDTH, MAX_TRAY_WIDTH, fallback.width),
+    diceScale: clamp(
+      stored.diceScale,
+      MIN_DICE_SCALE,
+      MAX_DICE_SCALE,
+      fallback.diceScale
+    ),
+  };
+}
+
 /** Make valid settings out of anything that was stored */
 export function sanitizeSettings(value: unknown): Settings {
-  const stored = (
-    typeof value === "object" && value !== null ? value : {}
-  ) as Partial<Record<keyof Settings, unknown>>;
+  const stored = asRecord(value);
   const d = defaultSettings;
+  // The first version of the settings had one size of dice and only the heights of the modes
+  const legacy = (height: unknown, fallback: TrayMode) => ({
+    ...fallback,
+    height,
+    diceScale: stored.diceScale,
+  });
   return {
-    trayHeightSmall: clamp(
-      stored.trayHeightSmall,
-      MIN_TRAY_HEIGHT,
-      MAX_TRAY_HEIGHT,
-      d.trayHeightSmall
+    small: sanitizeMode(
+      stored.small ?? legacy(stored.trayHeightSmall, d.small),
+      d.small
     ),
-    trayHeightLarge: clamp(
-      stored.trayHeightLarge,
-      MIN_TRAY_HEIGHT,
-      MAX_TRAY_HEIGHT,
-      d.trayHeightLarge
+    large: sanitizeMode(
+      stored.large ?? legacy(stored.trayHeightLarge, d.large),
+      d.large
     ),
     trayLarge:
       typeof stored.trayLarge === "boolean" ? stored.trayLarge : d.trayLarge,
     previewHeight: PREVIEW_HEIGHTS.includes(stored.previewHeight as number)
       ? (stored.previewHeight as number)
       : d.previewHeight,
-    diceScale: clamp(
-      stored.diceScale,
-      MIN_DICE_SCALE,
-      MAX_DICE_SCALE,
-      d.diceScale
-    ),
   };
 }
 
@@ -100,6 +138,8 @@ function save(settings: Settings) {
 interface SettingsState {
   settings: Settings;
   changeSettings: (update: Partial<Settings>) => void;
+  /** Change the settings of one of the modes of the tray */
+  changeMode: (large: boolean, update: Partial<TrayMode>) => void;
   resetSettings: () => void;
 }
 
@@ -110,8 +150,16 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     save(settings);
     set({ settings });
   },
+  changeMode(large, update) {
+    const current = get().settings;
+    get().changeSettings(
+      large
+        ? { large: { ...current.large, ...update } }
+        : { small: { ...current.small, ...update } }
+    );
+  },
   resetSettings() {
-    // Keep the current size of the tray, only its dimensions go back
+    // Stay in the current mode of the tray, everything else goes back
     const settings = {
       ...defaultSettings,
       trayLarge: get().settings.trayLarge,
@@ -128,9 +176,12 @@ window.addEventListener("storage", (event) => {
   }
 });
 
-/** The height of the window of the tray for its current size */
-export function getTrayHeight(settings: Settings) {
-  return settings.trayLarge
-    ? settings.trayHeightLarge
-    : settings.trayHeightSmall;
+/** The settings of the mode the tray is in */
+export function getTrayMode(settings: Settings): TrayMode {
+  return settings.trayLarge ? settings.large : settings.small;
+}
+
+/** Width in pixels of a tray of a given height */
+export function getTrayPixelWidth(height: number, width: number) {
+  return Math.round((height / 2) * width);
 }

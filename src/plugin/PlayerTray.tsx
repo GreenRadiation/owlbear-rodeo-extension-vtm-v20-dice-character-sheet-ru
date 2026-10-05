@@ -27,6 +27,7 @@ import { Tray } from "../tray/Tray";
 import { useDebugStore } from "../debug/store";
 import { TraySuspense } from "../tray/TraySuspense";
 import { RollHistoryButton } from "./RollHistoryButton";
+import { DEFAULT_TRAY_WIDTH } from "../settings/store";
 
 export function PlayerTray({
   player,
@@ -34,6 +35,9 @@ export function PlayerTray({
   player?: Player; // Make player optional to allow for preloading of the tray
 }) {
   const allowOrbit = useDebugStore((state) => state.allowOrbit);
+  // The tray of the player is as wide as it was for their roll
+  const { diceRoll } = usePlayerDice(player);
+  const trayWidth = diceRoll?.tray || DEFAULT_TRAY_WIDTH;
 
   return (
     <Box component="div" position="relative" display="flex">
@@ -41,7 +45,8 @@ export function PlayerTray({
         component="div"
         borderRadius={0.5}
         height="100vh"
-        width="calc(100vh / 2)"
+        width={`calc(100vh / 2 * ${trayWidth})`}
+        maxWidth="100%"
         overflow="hidden"
         position="relative"
       >
@@ -51,14 +56,14 @@ export function PlayerTray({
               <Environment files={environment} />
               <ContactShadows
                 resolution={256}
-                scale={[1, 2]}
+                scale={[trayWidth, 2]}
                 position={[0, 0, 0]}
                 blur={0.5}
                 opacity={0.5}
                 far={1}
                 color="#222222"
               />
-              <Tray />
+              <Tray widthScale={trayWidth} />
               <PlayerDiceRoll player={player} />
               <PerspectiveCamera
                 makeDefault

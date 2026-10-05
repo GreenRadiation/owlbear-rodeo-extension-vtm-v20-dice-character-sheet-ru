@@ -6,10 +6,18 @@ const WALL_THICKNESS = 50;
 const WALL_SIZE = 100;
 const FLOOR_Y = -WALL_THICKNESS + 0.005; // Push the floor up a little for better contact shadows
 const ROOF_Y = WALL_THICKNESS + 1.5;
-const WALL_X = WALL_THICKNESS + 0.46; // Move the wall in a bit to account for the wood thickness
+const WALL_X = 0.46; // Move the wall in a bit to account for the wood thickness
 const WALL_Z = WALL_THICKNESS + 0.96;
 
-export function TrayColliders(props: JSX.IntrinsicElements["group"]) {
+export function TrayColliders({
+  widthScale = 1,
+  ...props
+}: JSX.IntrinsicElements["group"] & {
+  /** Width of the tray relative to the original tray */
+  widthScale?: number;
+}) {
+  const wallX = WALL_THICKNESS + WALL_X * widthScale;
+
   return (
     <group {...props}>
       {/* Floor of the tray */}
@@ -49,13 +57,13 @@ export function TrayColliders(props: JSX.IntrinsicElements["group"]) {
         {/* Right wall */}
         <CuboidCollider
           args={[WALL_SIZE, WALL_THICKNESS, WALL_SIZE]}
-          position={[WALL_X, FLOOR_Y, 0]}
+          position={[wallX, FLOOR_Y, 0]}
           rotation={[0, 0, Math.PI / 2]}
         />
         {/* Left wall */}
         <CuboidCollider
           args={[WALL_SIZE, WALL_THICKNESS, WALL_SIZE]}
-          position={[-WALL_X, FLOOR_Y, 0]}
+          position={[-wallX, FLOOR_Y, 0]}
           rotation={[0, 0, Math.PI / 2]}
         />
         {/* Roof */}

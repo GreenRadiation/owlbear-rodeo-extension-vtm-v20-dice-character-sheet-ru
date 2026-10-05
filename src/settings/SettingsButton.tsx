@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
+import Divider from "@mui/material/Divider";
 import IconButton from "@mui/material/IconButton";
 import Slider from "@mui/material/Slider";
 import Stack from "@mui/material/Stack";
@@ -12,14 +13,19 @@ import SettingsIcon from "@mui/icons-material/SettingsRounded";
 import CloseIcon from "@mui/icons-material/CloseRounded";
 
 import { SlideTransition } from "../controls/SlideTransition";
+import { PluginGate } from "../plugin/PluginGate";
+import { RoomDataSettings } from "../plugin/RoomDataSettings";
 import {
   DICE_SCALE_STEP,
   MAX_DICE_SCALE,
   MAX_TRAY_HEIGHT,
+  MAX_TRAY_WIDTH,
   MIN_DICE_SCALE,
   MIN_TRAY_HEIGHT,
+  MIN_TRAY_WIDTH,
   PREVIEW_HEIGHTS,
   TRAY_HEIGHT_STEP,
+  TRAY_WIDTH_STEP,
   useSettingsStore,
 } from "./store";
 
@@ -46,129 +52,169 @@ export function SettingsButton() {
   );
 }
 
+/**
+ * A slider with its name and value.
+ * Shows the value while dragged but only reports it when released:
+ * some settings resize the window and a slider that changes its width
+ * while it is dragged jumps around.
+ */
 function Setting({
   label,
   value,
-  hint,
-  children,
+  format,
+  min,
+  max,
+  step,
+  marks,
+  onChange,
 }: {
   label: string;
-  value: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Stack>
-      <Stack direction="row" justifyContent="space-between" gap={1}>
-        <Typography>{label}</Typography>
-        <Typography color="text.secondary" noWrap>
-          {value}
-        </Typography>
-      </Stack>
-      {children}
-      {hint && (
-        <Typography variant="caption" color="text.secondary">
-          {hint}
-        </Typography>
-      )}
-    </Stack>
-  );
-}
-
-/** Slider that shows its value while dragged but only reports it when released */
-function CommittedSlider({
-  label,
-  hint,
-  value,
-  onCommit,
-}: {
-  label: string;
-  hint?: string;
   value: number;
-  onCommit: (value: number) => void;
+  format: (value: number) => string;
+  min: number;
+  max: number;
+  step: number;
+  marks?: boolean;
+  onChange: (value: number) => void;
 }) {
   const [dragged, setDragged] = useState<number | null>(null);
   const shown = dragged === null ? value : dragged;
 
   return (
-    <Setting label={label} value={`${shown} px`} hint={hint}>
-      <Slider
-        aria-label={label}
-        value={shown}
+    <Stack>
+      <Stack direction="row" justifyContent="space-between" gap={1}>
+        <Typography noWrap>{label}</Typography>
+        <Typography color="text.secondary" noWrap>
+          {format(shown)}
+        </Typography>
+      </Stack>
+      {/* The thumb of the slider sticks out at the ends, leave room for it */}
+      <Stack px={1.25}>
+        <Slider
+          aria-label={label}
+          value={shown}
+          min={min}
+          max={max}
+          step={step}
+          marks={marks}
+          onChange={(_, value) => setDragged(value as number)}
+          onChangeCommitted={(_, value) => {
+            setDragged(null);
+            onChange(value as number);
+          }}
+        />
+      </Stack>
+    </Stack>
+  );
+}
+
+const percent = (value: number) => `${Math.round(value * 100)}%`;
+const pixels = (value: number) => `${value} px`;
+
+/** The settings of one of the two modes of the tray */
+function ModeSettings({ large }: { large: boolean }) {
+  const mode = useSettingsStore((state) =>
+    large ? state.settings.large : state.settings.small
+  );
+  const active = useSettingsStore(
+    (state) => state.settings.trayLarge === large
+  );
+  const changeMode = useSettingsStore((state) => state.changeMode);
+  const changeSettings = useSettingsStore((state) => state.changeSettings);
+
+  return (
+    <Stack flex={1} minWidth={0} gap={1}>
+      <Button
+        size="small"
+        variant={active ? "contained" : "outlined"}
+        onClick={() => changeSettings({ trayLarge: large })}
+      >
+        {large ? "Большой" : "Маленький"}
+      </Button>
+      <Setting
+        label="Высота"
+        value={mode.height}
+        format={pixels}
         min={MIN_TRAY_HEIGHT}
         max={MAX_TRAY_HEIGHT}
         step={TRAY_HEIGHT_STEP}
-        onChange={(_, value) => setDragged(value as number)}
-        onChangeCommitted={(_, value) => {
-          setDragged(null);
-          onCommit(value as number);
-        }}
+        onChange={(height) => changeMode(large, { height })}
       />
-    </Setting>
+      <Setting
+        label="Ширина"
+        value={mode.width}
+        format={percent}
+        min={MIN_TRAY_WIDTH}
+        max={MAX_TRAY_WIDTH}
+        step={TRAY_WIDTH_STEP}
+        marks
+        onChange={(width) => changeMode(large, { width })}
+      />
+      <Setting
+        label="Кубы"
+        value={mode.diceScale}
+        format={percent}
+        min={MIN_DICE_SCALE}
+        max={MAX_DICE_SCALE}
+        step={DICE_SCALE_STEP}
+        marks
+        onChange={(diceScale) => changeMode(large, { diceScale })}
+      />
+    </Stack>
   );
 }
 
 function Settings({ onClose }: { onClose: () => void }) {
-  const settings = useSettingsStore((state) => state.settings);
+  const previewHeight = useSettingsStore(
+    (state) => state.settings.previewHeight
+  );
   const changeSettings = useSettingsStore((state) => state.changeSettings);
   const resetSettings = useSettingsStore((state) => state.resetSettings);
 
-  const previewIndex = Math.max(
-    0,
-    PREVIEW_HEIGHTS.indexOf(settings.previewHeight)
-  );
-
   return (
-    <Stack p={2} gap={2.5} overflow="auto">
+    <Stack p={2} gap={2} sx={{ overflowX: "hidden", overflowY: "auto" }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center">
         <Typography variant="h6">Настройки</Typography>
         <IconButton aria-label="закрыть настройки" onClick={onClose}>
           <CloseIcon />
         </IconButton>
       </Stack>
-      <CommittedSlider
-        label="Высота маленького лотка"
-        hint="Между маленьким и большим лотком переключает кнопка со стрелками в боковой панели."
-        value={settings.trayHeightSmall}
-        onCommit={(value) => changeSettings({ trayHeightSmall: value })}
-      />
-      <CommittedSlider
-        label="Высота большого лотка"
-        value={settings.trayHeightLarge}
-        onCommit={(value) => changeSettings({ trayHeightLarge: value })}
-      />
-      <Setting
-        label="Броски других игроков"
-        value={previewIndex === 0 ? "не показывать" : `размер ${previewIndex}`}
-        hint="Маленькие лотки в правом нижнем углу экрана."
-      >
-        <Slider
-          aria-label="размер предпросмотра бросков других игроков"
-          value={previewIndex}
+      <Stack gap={0.5}>
+        <Typography>Лоток</Typography>
+        <Typography variant="caption" color="text.secondary">
+          У лотка два режима со своими настройками. Переключает их кнопка со
+          стрелками в боковой панели или кнопки ниже. Ширина и размер кубов
+          действуют со следующего броска, остальные игроки видят твой лоток и
+          кубы такими же.
+        </Typography>
+      </Stack>
+      <Stack direction="row" gap={2}>
+        <ModeSettings large={false} />
+        <Divider orientation="vertical" flexItem />
+        <ModeSettings large={true} />
+      </Stack>
+      <Divider />
+      <Stack gap={0.5}>
+        <Setting
+          label="Броски других игроков"
+          value={Math.max(0, PREVIEW_HEIGHTS.indexOf(previewHeight))}
+          format={(index) => (index === 0 ? "не показывать" : `размер ${index}`)}
           min={0}
           max={PREVIEW_HEIGHTS.length - 1}
           step={1}
           marks
-          onChange={(_, value) =>
-            changeSettings({ previewHeight: PREVIEW_HEIGHTS[value as number] })
+          onChange={(index) =>
+            changeSettings({ previewHeight: PREVIEW_HEIGHTS[index] })
           }
         />
-      </Setting>
-      <Setting
-        label="Размер кубов"
-        value={`${Math.round(settings.diceScale * 100)}%`}
-        hint="Действует со следующего броска. Остальные видят твои кубы того же размера."
-      >
-        <Slider
-          aria-label="размер кубов"
-          value={settings.diceScale}
-          min={MIN_DICE_SCALE}
-          max={MAX_DICE_SCALE}
-          step={DICE_SCALE_STEP}
-          marks
-          onChange={(_, value) => changeSettings({ diceScale: value as number })}
-        />
-      </Setting>
+        <Typography variant="caption" color="text.secondary">
+          Маленькие лотки в правом нижнем углу экрана.
+        </Typography>
+      </Stack>
+      <PluginGate>
+        <Divider />
+        <RoomDataSettings />
+      </PluginGate>
       <Stack direction="row" justifyContent="space-between">
         <Button color="inherit" onClick={resetSettings}>
           Сбросить

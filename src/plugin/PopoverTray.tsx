@@ -23,6 +23,7 @@ import { DiceRoll as DiceRollType } from "../types/DiceRoll";
 import { DiceThrow } from "../types/DiceThrow";
 import { DiceTransform } from "../types/DiceTransform";
 import { RollOutcome, formatOutcome } from "../v20/roll";
+import { DEFAULT_TRAY_WIDTH, getTrayPixelWidth } from "../settings/store";
 
 /** Height of the bar with the name of the player under the tray */
 export const PREVIEW_NAME_HEIGHT = 32;
@@ -46,9 +47,10 @@ export function PopoverTray({
   onOpen,
 }: {
   player: Player;
-  /** Height of the tray in pixels, the tray is half as wide as it is high */
+  /** Height of the tray in pixels */
   height: number;
-  onToggle: (connectionId: string, show: boolean) => void;
+  /** Tell how wide the preview is in pixels, 0 when it isn't shown */
+  onToggle: (connectionId: string, width: number) => void;
   onOpen: (connectionId: string) => void;
 }) {
   const { diceRoll, rollThrows, outcome, finishedRolling, finishedRollTransforms } =
@@ -95,18 +97,23 @@ export function PopoverTray({
   }, [rolling]);
 
   const shown = !closed && (rolling || finished !== null);
+
+  // The tray is as wide as it was for the roll it shows
+  const shownRoll = live ? diceRoll : finished?.roll;
+  const trayWidth = shownRoll?.tray || DEFAULT_TRAY_WIDTH;
+  const width = getTrayPixelWidth(height, trayWidth);
+
   useEffect(() => {
-    onToggle(player.connectionId, shown);
-  }, [shown, player.connectionId]);
+    onToggle(player.connectionId, shown ? width : 0);
+  }, [shown, width, player.connectionId]);
   useEffect(() => {
-    return () => onToggle(player.connectionId, false);
+    return () => onToggle(player.connectionId, 0);
   }, [player.connectionId]);
 
   if (!shown) {
     return null;
   }
 
-  const width = height / 2;
   const shownOutcome = live ? outcome : finished?.outcome;
 
   return (
@@ -135,7 +142,7 @@ export function PopoverTray({
             <Canvas frameloop="demand">
               <AudioListenerProvider volume={0.25}>
                 <Environment files={environment} />
-                <Tray />
+                <Tray widthScale={trayWidth} />
                 {live ? (
                   <PlayerDiceRoll player={player} />
                 ) : (

@@ -93,7 +93,7 @@ function ScaledDiceRoll({
         updateLoop="independent"
         paused={paused}
       >
-        <TrayColliders />
+        <TrayColliders widthScale={roll.tray || 1} />
         {dice?.map((die) => {
           const dieThrow = rollThrows[die.id];
           // Use a fixed transform if we have it

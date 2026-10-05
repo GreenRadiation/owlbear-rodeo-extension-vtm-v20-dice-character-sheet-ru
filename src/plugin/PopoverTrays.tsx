@@ -23,23 +23,22 @@ export function PopoverTrays() {
   const height = useSettingsStore((state) => state.settings.previewHeight);
   const enabled = height > 0;
 
-  const [visibleTrays, setVisibleTrays] = useState<string[]>([]);
+  /** Widths in pixels of the previews that are shown by the connection id of their player */
+  const [widths, setWidths] = useState<Record<string, number>>({});
 
-  useEffect(() => {
-    const playerIds = players.map((p) => p.connectionId);
-    setVisibleTrays((visible) =>
-      visible.filter((id) => playerIds.includes(id))
-    );
-  }, [players]);
-
-  function handleTrayToggle(connectionId: string, shown: boolean) {
-    if (shown) {
-      setVisibleTrays((visible) =>
-        visible.includes(connectionId) ? visible : [...visible, connectionId]
-      );
-    } else {
-      setVisibleTrays((visible) => visible.filter((id) => id !== connectionId));
-    }
+  function handleTrayToggle(connectionId: string, width: number) {
+    setWidths((widths) => {
+      if ((widths[connectionId] || 0) === width) {
+        return widths;
+      }
+      const next = { ...widths };
+      if (width > 0) {
+        next[connectionId] = width;
+      } else {
+        delete next[connectionId];
+      }
+      return next;
+    });
   }
 
   function handleTrayOpen(connectionId: string) {
@@ -52,7 +51,9 @@ export function PopoverTrays() {
   }
 
   // Fit the window to the previews, an empty window is hidden
-  const count = enabled ? visibleTrays.length : 0;
+  const shownWidths = enabled ? Object.values(widths) : [];
+  const count = shownWidths.length;
+  const totalWidth = shownWidths.reduce((a, b) => a + b, 0);
   useEffect(() => {
     const id = getPluginId("popover");
     if (count === 0) {
@@ -65,10 +66,10 @@ export function PopoverTrays() {
       );
       OBR.popover.setWidth(
         id,
-        count * (height / 2) + (count - 1) * PREVIEW_GAP + PREVIEW_MARGIN * 2
+        totalWidth + (count - 1) * PREVIEW_GAP + PREVIEW_MARGIN * 2
       );
     }
-  }, [count, height]);
+  }, [count, totalWidth, height]);
 
   if (!enabled) {
     return null;

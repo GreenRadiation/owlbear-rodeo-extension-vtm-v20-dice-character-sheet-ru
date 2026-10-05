@@ -21,9 +21,10 @@ const MAX_ANGULAR_VELOCITY = 6;
 /** Closest two dice can start to each other, a bit more than the size of the biggest die */
 const MIN_DISTANCE = 0.27;
 
-export function randomPosition(): DiceVector3 {
+/** `trayWidth` is the width of the tray relative to the original tray */
+export function randomPosition(trayWidth = 1): DiceVector3 {
   return {
-    x: random(MIN_X, MAX_X),
+    x: random(MIN_X, MAX_X) * trayWidth,
     y: random(MIN_Y, MAX_Y),
     z: random(MIN_Z, MAX_Z),
   };
@@ -59,10 +60,11 @@ export function randomRotation(): DiceQuaternion {
  */
 export function randomLinearVelocity(
   position: DiceVector3,
-  speedMultiplier?: number
+  speedMultiplier?: number,
+  trayWidth = 1
 ): DiceVector3 {
   // Only use the horizontal plane
-  const x = position.x - random(MIN_TARGET_X, MAX_TARGET_X);
+  const x = position.x - random(MIN_TARGET_X, MAX_TARGET_X) * trayWidth;
   const z = position.z - random(MIN_TARGET_Z, MAX_TARGET_Z);
   // Normalize to get the direction from the target to the die
   const length = Math.sqrt(x * x + z * z);
@@ -107,10 +109,17 @@ export function randomAngularVelocity(): DiceVector3 {
   };
 }
 
-export function getRandomDiceThrow(speedMultiplier?: number): DiceThrow {
-  const position = randomPosition();
+export function getRandomDiceThrow(
+  speedMultiplier?: number,
+  trayWidth = 1
+): DiceThrow {
+  const position = randomPosition(trayWidth);
   const rotation = randomRotation();
-  const linearVelocity = randomLinearVelocity(position, speedMultiplier);
+  const linearVelocity = randomLinearVelocity(
+    position,
+    speedMultiplier,
+    trayWidth
+  );
   const angularVelocity = randomAngularVelocity();
   return {
     position,
@@ -123,6 +132,9 @@ export function getRandomDiceThrow(speedMultiplier?: number): DiceThrow {
 /** A dice thrower that keeps a history of previous dice to avoid collisions */
 export class DiceThrower {
   private history: DiceThrow[] = [];
+
+  /** `trayWidth` is the width of the tray relative to the original tray */
+  constructor(private trayWidth = 1) {}
 
   private isPositionValid(position: DiceVector3) {
     for (const diceThrow of this.history) {
@@ -143,15 +155,19 @@ export class DiceThrower {
     if (this.history.length > index) {
       return this.history[index];
     }
-    let position = randomPosition();
+    let position = randomPosition(this.trayWidth);
     for (let i = 0; i < 50; i++) {
       if (this.isPositionValid(position)) {
         break;
       }
-      position = randomPosition();
+      position = randomPosition(this.trayWidth);
     }
     const rotation = randomRotation();
-    const linearVelocity = randomLinearVelocity(position, speedMultiplier);
+    const linearVelocity = randomLinearVelocity(
+      position,
+      speedMultiplier,
+      this.trayWidth
+    );
     const angularVelocity = randomAngularVelocity();
 
     const diceThrow: DiceThrow = {

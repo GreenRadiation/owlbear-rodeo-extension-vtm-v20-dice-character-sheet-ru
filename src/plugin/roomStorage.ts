@@ -11,7 +11,8 @@ export const ROOM_METADATA_LIMIT = 16000;
 /** Bytes left alone for other extensions and for writes that happen at the same time */
 const ROOM_METADATA_RESERVE = 1000;
 
-function byteSize(value: unknown): number {
+/** Size of a value in the room metadata in bytes */
+export function byteSize(value: unknown): number {
   return new TextEncoder().encode(JSON.stringify(value) ?? "").length;
 }
 

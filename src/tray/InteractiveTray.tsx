@@ -16,17 +16,27 @@ import { Tray } from "./Tray";
 import { useDebugStore } from "../debug/store";
 import { TraySuspense } from "./TraySuspense";
 import { PreviewDiceRoll } from "../dice/PreviewDiceRoll";
+import { useDiceRollStore } from "../dice/store";
+import { getTrayMode, useSettingsStore } from "../settings/store";
 
 /** Dice tray that controls the dice roll store */
 export function InteractiveTray() {
   const allowOrbit = useDebugStore((state) => state.allowOrbit);
+
+  // The window follows the settings, the tray itself stays as wide as it was
+  // for the roll that is in it
+  const settingsWidth = useSettingsStore(
+    (state) => getTrayMode(state.settings).width
+  );
+  const rollWidth = useDiceRollStore((state) => state.roll?.tray);
+  const trayWidth = rollWidth || settingsWidth;
 
   return (
     <Box
       component="div"
       borderRadius={1}
       height="100vh"
-      width="calc(100vh / 2)"
+      width={`calc(100vh / 2 * ${settingsWidth})`}
       overflow="hidden"
       position="relative"
       id="interactive-tray"
@@ -43,14 +53,14 @@ export function InteractiveTray() {
             <Environment files={environment} />
             <ContactShadows
               resolution={256}
-              scale={[1, 2]}
+              scale={[trayWidth, 2]}
               position={[0, 0, 0]}
               blur={0.5}
               opacity={0.5}
               far={1}
               color="#222222"
             />
-            <Tray />
+            <Tray widthScale={trayWidth} />
             <PreviewDiceRoll />
             <InteractiveDiceRoll />
             <PerspectiveCamera

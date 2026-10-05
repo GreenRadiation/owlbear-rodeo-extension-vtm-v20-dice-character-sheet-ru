@@ -20,7 +20,7 @@ import { useDiceRollStore } from "../dice/store";
 import { RollResult } from "./RollResult";
 import { getDiceToRoll, useDiceControlsStore } from "./store";
 import { faceToValue } from "../v20/roll";
-import { useSettingsStore } from "../settings/store";
+import { getTrayMode, useSettingsStore } from "../settings/store";
 
 const jiggle = keyframes`
 0% { transform: translate(0, 0) rotate(0deg); }
@@ -77,8 +77,11 @@ function DicePickedControls() {
       const dice = getDiceToRoll(pool, diceSet);
       const activeTimeSeconds = (performance.now() - rollPressTime) / 1000;
       const speedMultiplier = Math.max(1, Math.min(10, activeTimeSeconds * 2));
-      const scale = useSettingsStore.getState().settings.diceScale;
-      startRoll({ dice, hidden, scale }, speedMultiplier);
+      const mode = getTrayMode(useSettingsStore.getState().settings);
+      startRoll(
+        { dice, hidden, scale: mode.diceScale, tray: mode.width },
+        speedMultiplier
+      );
       resetPool();
     }
     setRollPressTime(null);
