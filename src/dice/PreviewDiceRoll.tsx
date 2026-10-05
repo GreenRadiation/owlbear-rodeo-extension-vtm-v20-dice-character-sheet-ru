@@ -30,8 +30,8 @@ export function PreviewDiceRoll() {
   );
 
   const diceThrower = useMemo(
-    () => new DiceThrower(getTrayModelWidth(width)),
-    [width]
+    () => new DiceThrower(getTrayModelWidth(width), diceScale),
+    [width, diceScale]
   );
   const isDefault = pool === 0;
   useEffect(() => {

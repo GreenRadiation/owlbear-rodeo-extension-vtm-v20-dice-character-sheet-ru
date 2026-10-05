@@ -13,7 +13,7 @@ import { getHistoryKey } from "./RollHistorySync";
 import { useRoomMetadata } from "./roomStorage";
 import { decodeHistory } from "../v20/history";
 import { formatValue } from "../v20/roll";
-import { useSymbols } from "../settings/store";
+import { useSettingsStore, useSymbols } from "../settings/store";
 
 /** The history of the player using the extension, has to be rendered when the plugin is ready */
 export function OwnRollHistoryButton() {
@@ -32,9 +32,14 @@ export function RollHistoryButton({
   color?: string;
 }) {
   const metadata = useRoomMetadata();
+  // The room keeps more rolls than a player may want to see
+  const length = useSettingsStore((state) => state.settings.historyLength);
   const rolls = useMemo(
-    () => decodeHistory(metadata[getHistoryKey(playerId)]).reverse(),
-    [metadata, playerId]
+    () =>
+      decodeHistory(metadata[getHistoryKey(playerId)])
+        .reverse()
+        .slice(0, length),
+    [metadata, playerId, length]
   );
 
   const symbols = useSymbols();

@@ -66,7 +66,7 @@ export const useDiceRollStore = create<DiceRollState>()(
         state.difficulty = DEFAULT_DIFFICULTY;
         state.specialty = false;
         // Use a thrower so that the dice of a big pool don't start inside each other
-        const thrower = new DiceThrower(roll.tray || 1);
+        const thrower = new DiceThrower(roll.tray || 1, roll.scale || 1);
         // Set all values to null
         const dice = getDieFromDice(roll);
         dice.forEach((die, index) => {
@@ -102,7 +102,7 @@ export const useDiceRollStore = create<DiceRollState>()(
           }
         }
         const trayWidth = state.roll.tray || 1;
-        const thrower = new DiceThrower(trayWidth);
+        const thrower = new DiceThrower(trayWidth, state.roll.scale || 1);
         let index = 0;
         for (const die of state.roll.dice) {
           if (isDie(die) && (!ids || ids.includes(die.id))) {

@@ -25,7 +25,7 @@ export function PopoverTrays() {
   const hiddenPlayers = useSettingsStore(
     (state) => state.settings.hiddenPreviews
   );
-  const enabled = height > 0;
+  const enabled = useSettingsStore((state) => state.settings.previewEnabled);
   // The previews keep what they show while everything is collapsed, only their window goes away
   const collapsed = useSettingsStore((state) => state.settings.collapsed);
 

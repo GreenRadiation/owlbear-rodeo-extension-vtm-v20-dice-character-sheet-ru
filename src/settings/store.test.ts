@@ -49,6 +49,7 @@ describe("settings", () => {
       previewHeight: 240,
       previewLastOnly: true,
       hiddenPreviews: ["a", 7, "b"],
+      historyLength: 50,
       sheetOpen: true,
       collapsed: true,
       foldedSections: ["status", 5],
@@ -60,7 +61,7 @@ describe("settings", () => {
       small: {
         height: 400,
         width: 1,
-        diceScale: 0.7,
+        diceScale: 0.5,
         sheetPlacement: "right",
         sheetHeight: 200,
         sheetWidth: 300,
@@ -74,9 +75,11 @@ describe("settings", () => {
         sheetColumns: 3,
       },
       trayLarge: true,
+      previewEnabled: true,
       previewHeight: 240,
       previewLastOnly: true,
       hiddenPreviews: ["a", "b"],
+      historyLength: 20,
       sheetOpen: true,
       collapsed: true,
       foldedSections: ["status"],
@@ -127,12 +130,24 @@ describe("settings", () => {
     expect(settings.previewHeight).toBe(460);
   });
 
-  it("only accepts the listed preview heights", () => {
-    expect(sanitizeSettings({ previewHeight: 0 }).previewHeight).toBe(0);
-    expect(sanitizeSettings({ previewHeight: 680 }).previewHeight).toBe(680);
-    expect(sanitizeSettings({ previewHeight: 123 }).previewHeight).toBe(
+  it("keeps the height of the previews in its range", () => {
+    expect(sanitizeSettings({ previewHeight: 690 }).previewHeight).toBe(690);
+    expect(sanitizeSettings({ previewHeight: 5 }).previewHeight).toBe(120);
+    expect(sanitizeSettings({ previewHeight: 5000 }).previewHeight).toBe(800);
+    expect(sanitizeSettings({ previewHeight: "big" }).previewHeight).toBe(
       defaultSettings.previewHeight
     );
+  });
+
+  it("turns the previews off for a height of 0 of the older settings", () => {
+    const old = sanitizeSettings({ previewHeight: 0 });
+    expect(old.previewEnabled).toBe(false);
+    expect(old.previewHeight).toBe(defaultSettings.previewHeight);
+    expect(sanitizeSettings({ previewHeight: 300 }).previewEnabled).toBe(true);
+    expect(
+      sanitizeSettings({ previewHeight: 300, previewEnabled: false })
+        .previewEnabled
+    ).toBe(false);
   });
 
   it("picks the settings of the current mode", () => {

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import create from "zustand";
 
 import { getPluginId } from "../plugin/getPluginId";
+import { MAX_HISTORY_ROLLS } from "../v20/history";
 import {
   DEFAULT_SYMBOLS,
   ONE_SYMBOLS,
@@ -47,12 +48,19 @@ export interface Settings {
   large: TrayMode;
   /** Which of the two modes of the tray is in use */
   trayLarge: boolean;
-  /** Height of the previews of the rolls of other players, 0 turns the previews off */
+  /** If the rolls of other players get previews in the corner of the screen */
+  previewEnabled: boolean;
+  /** Height of the previews of the rolls of other players in pixels */
   previewHeight: number;
   /** Only show the preview of the player who rolled last */
   previewLastOnly: boolean;
   /** Ids of the players whose rolls don't get a preview */
   hiddenPreviews: string[];
+  /**
+   * How many of the last rolls of a player the history shows.
+   * Only what is shown: the room keeps MAX_HISTORY_ROLLS of them for everyone.
+   */
+  historyLength: number;
   /** If the character sheet is shown */
   sheetOpen: boolean;
   /**
@@ -78,17 +86,21 @@ export const MAX_TRAY_WIDTH = 2;
 export const TRAY_WIDTH_STEP = 0.1;
 const DEFAULT_TRAY_WIDTH = 0.6;
 
-/** The choices for the height of the previews, the first one turns them off */
-export const PREVIEW_HEIGHTS = [0, 180, 240, 300, 380, 460, 560, 680];
+export const MIN_PREVIEW_HEIGHT = 120;
+export const MAX_PREVIEW_HEIGHT = 800;
+export const PREVIEW_HEIGHT_STEP = 20;
+
+export const MIN_HISTORY_LENGTH = 1;
+export const MAX_HISTORY_LENGTH = MAX_HISTORY_ROLLS;
 
 export const MIN_SHEET_SIZE = 200;
-export const MAX_SHEET_SIZE = 1000;
+export const MAX_SHEET_SIZE = 1600;
 export const SHEET_SIZE_STEP = 20;
 export const MIN_SHEET_COLUMNS = 1;
 export const MAX_SHEET_COLUMNS = 3;
 
-export const MIN_DICE_SCALE = 0.7;
-export const MAX_DICE_SCALE = 1.1;
+export const MIN_DICE_SCALE = 0.5;
+export const MAX_DICE_SCALE = 1.5;
 export const DICE_SCALE_STEP = 0.05;
 
 /** The most players that can be kept out of the previews */
@@ -109,20 +121,22 @@ export const defaultSettings: Settings = {
     sheetWidth: 420,
     sheetColumns: 1,
   },
-  // A tray on its side with a sheet in three columns below it
+  // A big tray on its side with a sheet in three columns next to it
   large: {
-    height: 360,
+    height: 500,
     width: 1.8,
     diceScale: 1,
-    sheetPlacement: "below",
+    sheetPlacement: "right",
     sheetHeight: 600,
-    sheetWidth: 440,
+    sheetWidth: 620,
     sheetColumns: 3,
   },
   trayLarge: false,
+  previewEnabled: true,
   previewHeight: 380,
   previewLastOnly: false,
   hiddenPreviews: [],
+  historyLength: 8,
   sheetOpen: false,
   collapsed: false,
   foldedSections: [],
@@ -231,9 +245,20 @@ export function sanitizeSettings(value: unknown): Settings {
     ),
     trayLarge:
       typeof stored.trayLarge === "boolean" ? stored.trayLarge : d.trayLarge,
-    previewHeight: PREVIEW_HEIGHTS.includes(stored.previewHeight as number)
-      ? (stored.previewHeight as number)
-      : d.previewHeight,
+    // A height of 0 used to turn the previews off
+    previewEnabled:
+      typeof stored.previewEnabled === "boolean"
+        ? stored.previewEnabled
+        : stored.previewHeight !== 0,
+    previewHeight:
+      stored.previewHeight === 0
+        ? d.previewHeight
+        : clamp(
+            stored.previewHeight,
+            MIN_PREVIEW_HEIGHT,
+            MAX_PREVIEW_HEIGHT,
+            d.previewHeight
+          ),
     previewLastOnly:
       typeof stored.previewLastOnly === "boolean"
         ? stored.previewLastOnly
@@ -243,6 +268,14 @@ export function sanitizeSettings(value: unknown): Settings {
           .filter((id): id is string => typeof id === "string")
           .slice(0, MAX_HIDDEN_PREVIEWS)
       : d.hiddenPreviews,
+    historyLength: Math.round(
+      clamp(
+        stored.historyLength,
+        MIN_HISTORY_LENGTH,
+        MAX_HISTORY_LENGTH,
+        d.historyLength
+      )
+    ),
     sheetOpen:
       typeof stored.sheetOpen === "boolean" ? stored.sheetOpen : d.sheetOpen,
     collapsed:

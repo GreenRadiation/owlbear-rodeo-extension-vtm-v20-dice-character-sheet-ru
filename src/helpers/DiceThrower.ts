@@ -18,14 +18,21 @@ const MIN_LAUNCH_VELOCITY = 1;
 const MAX_LAUNCH_VELOCITY = 2;
 const MIN_ANGULAR_VELOCITY = 2;
 const MAX_ANGULAR_VELOCITY = 6;
-/** Closest two dice can start to each other, a bit more than the size of the biggest die */
+/** Closest two dice of the original size can start to each other, a bit more than the size of a die */
 const MIN_DISTANCE = 0.27;
+/** How much higher dice can start for every bit of size over the original one */
+const EXTRA_HEIGHT = 2;
 
-/** `trayWidth` is the width of the tray relative to the original tray */
-export function randomPosition(trayWidth = 1): DiceVector3 {
+/**
+ * `trayWidth` is the width of the tray relative to the original tray,
+ * `diceScale` the size of the dice relative to the original dice.
+ * Bigger dice start in a taller space: there are less ways to put them
+ * side by side without touching.
+ */
+export function randomPosition(trayWidth = 1, diceScale = 1): DiceVector3 {
   return {
     x: random(MIN_X, MAX_X) * trayWidth,
-    y: random(MIN_Y, MAX_Y),
+    y: random(MIN_Y, MAX_Y + Math.max(0, diceScale - 1) * EXTRA_HEIGHT),
     z: random(MIN_Z, MAX_Z),
   };
 }
@@ -133,8 +140,11 @@ export function getRandomDiceThrow(
 export class DiceThrower {
   private history: DiceThrow[] = [];
 
-  /** `trayWidth` is the width of the tray relative to the original tray */
-  constructor(private trayWidth = 1) {}
+  /**
+   * `trayWidth` is the width of the tray relative to the original tray,
+   * `diceScale` the size of the dice relative to the original dice
+   */
+  constructor(private trayWidth = 1, private diceScale = 1) {}
 
   private isPositionValid(position: DiceVector3) {
     for (const diceThrow of this.history) {
@@ -144,7 +154,7 @@ export class DiceThrower {
       const lenSquared =
         delta.x * delta.x + delta.y * delta.y + delta.z * delta.z;
       const distance = Math.sqrt(lenSquared);
-      if (distance < MIN_DISTANCE) {
+      if (distance < MIN_DISTANCE * Math.max(1, this.diceScale)) {
         return false;
       }
     }
@@ -155,12 +165,12 @@ export class DiceThrower {
     if (this.history.length > index) {
       return this.history[index];
     }
-    let position = randomPosition(this.trayWidth);
+    let position = randomPosition(this.trayWidth, this.diceScale);
     for (let i = 0; i < 50; i++) {
       if (this.isPositionValid(position)) {
         break;
       }
-      position = randomPosition(this.trayWidth);
+      position = randomPosition(this.trayWidth, this.diceScale);
     }
     const rotation = randomRotation();
     const linearVelocity = randomLinearVelocity(

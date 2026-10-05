@@ -37,7 +37,11 @@ import {
   MIN_SHEET_SIZE,
   MIN_TRAY_HEIGHT,
   MIN_TRAY_WIDTH,
-  PREVIEW_HEIGHTS,
+  MAX_HISTORY_LENGTH,
+  MAX_PREVIEW_HEIGHT,
+  MIN_HISTORY_LENGTH,
+  MIN_PREVIEW_HEIGHT,
+  PREVIEW_HEIGHT_STEP,
   SHEET_SIZE_STEP,
   TRAY_HEIGHT_STEP,
   TRAY_WIDTH_STEP,
@@ -334,24 +338,33 @@ function Settings({ onClose }: { onClose: () => void }) {
       </Stack>
       <Divider />
       <Stack gap={0.5}>
-        <Setting
-          label="Броски других игроков"
-          value={Math.max(0, PREVIEW_HEIGHTS.indexOf(settings.previewHeight))}
-          format={(index) =>
-            index === 0 ? "не показывать" : `размер ${index}`
-          }
-          min={0}
-          max={PREVIEW_HEIGHTS.length - 1}
-          step={1}
-          marks
-          onChange={(index) =>
-            changeSettings({ previewHeight: PREVIEW_HEIGHTS[index] })
+        <FormControlLabel
+          label="Показывать броски других игроков"
+          control={
+            <Checkbox
+              size="small"
+              checked={settings.previewEnabled}
+              onChange={(event) =>
+                changeSettings({ previewEnabled: event.target.checked })
+              }
+            />
           }
         />
         <Typography variant="caption" color="text.secondary">
           Маленькие лотки в правом нижнем углу экрана. Отдельного игрока можно
           убрать оттуда кнопкой в его лотке, который открывается по его иконке.
         </Typography>
+        {settings.previewEnabled && (
+          <Setting
+            label="Высота маленьких лотков"
+            value={settings.previewHeight}
+            format={pixels}
+            min={MIN_PREVIEW_HEIGHT}
+            max={MAX_PREVIEW_HEIGHT}
+            step={PREVIEW_HEIGHT_STEP}
+            onChange={(previewHeight) => changeSettings({ previewHeight })}
+          />
+        )}
         <FormControlLabel
           label="Только бросок последнего игрока"
           control={
@@ -378,6 +391,24 @@ function Settings({ onClose }: { onClose: () => void }) {
             </Button>
           </Stack>
         )}
+      </Stack>
+      <Divider />
+      <Stack gap={0.5}>
+        <Setting
+          label="Бросков в истории"
+          value={settings.historyLength}
+          format={(value) => `${value}`}
+          min={MIN_HISTORY_LENGTH}
+          max={MAX_HISTORY_LENGTH}
+          step={1}
+          marks
+          onChange={(historyLength) => changeSettings({ historyLength })}
+        />
+        <Typography variant="caption" color="text.secondary">
+          Сколько последних бросков показывает кнопка истории, у тебя и у других
+          игроков. Комната хранит по {MAX_HISTORY_LENGTH} бросков на игрока
+          независимо от этой настройки.
+        </Typography>
       </Stack>
       <Divider />
       <DiceStyleSetting />
