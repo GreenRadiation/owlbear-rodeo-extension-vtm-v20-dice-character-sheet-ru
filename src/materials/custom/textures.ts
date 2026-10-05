@@ -1,7 +1,16 @@
 import * as THREE from "three";
 
-import { DiceLook } from "../../dice/look";
-import { PaintLayout, paintLook, paintNormals } from "./paint";
+import { DiceLook, isTexturePattern } from "../../dice/look";
+import {
+  PaintLayout,
+  Shapes,
+  blur,
+  buildPatternMap,
+  getPaintKey,
+  paintLook,
+  paintNormals,
+  paintOutline,
+} from "./paint";
 
 /**
  * Builds the textures of custom dice.
@@ -61,6 +70,25 @@ function createCanvas(width: number, height: number) {
   return context;
 }
 
+/** The pixels of the strip of a D10 of an image of the atlas */
+function getStrip(image: HTMLImageElement) {
+  const context = createCanvas(CROP.width, CROP.height);
+  // The image may come in another size than the atlas it was made for
+  const scale = image.naturalWidth / ATLAS_SIZE;
+  context.drawImage(
+    image,
+    CROP.x * scale,
+    CROP.y * scale,
+    CROP.width * scale,
+    CROP.height * scale,
+    0,
+    0,
+    CROP.width,
+    CROP.height
+  );
+  return context.getImageData(0, 0, CROP.width, CROP.height).data;
+}
+
 /** Replace a digit with an icon */
 function stampIcon(
   digits: Uint8Array,
@@ -82,38 +110,18 @@ function stampIcon(
   }
 }
 
-/** How much of every pixel of the strip is a digit or an icon, 0 to 255 */
-function getDigits(
-  mask: HTMLImageElement,
-  tenIcon?: HTMLImageElement,
-  oneIcon?: HTMLImageElement
-) {
-  const context = createCanvas(CROP.width, CROP.height);
-  // The mask may come in another size than the atlas it was made for
-  const scale = mask.naturalWidth / ATLAS_SIZE;
-  context.drawImage(
-    mask,
-    CROP.x * scale,
-    CROP.y * scale,
-    CROP.width * scale,
-    CROP.height * scale,
-    0,
-    0,
-    CROP.width,
-    CROP.height
-  );
-  const pixels = context.getImageData(0, 0, CROP.width, CROP.height).data;
-  const digits = new Uint8Array(CROP.width * CROP.height);
-  for (let i = 0; i < digits.length; i++) {
-    digits[i] = 255 - pixels[i * 4];
+/** How much of every pixel of the strip is a digit, 0 to 255: the digits of the original dice */
+let originalDigits: Uint8Array | undefined;
+
+function getOriginalDigits(mask: HTMLImageElement) {
+  if (!originalDigits) {
+    const pixels = getStrip(mask);
+    originalDigits = new Uint8Array(CROP.width * CROP.height);
+    for (let i = 0; i < originalDigits.length; i++) {
+      originalDigits[i] = 255 - pixels[i * 4];
+    }
   }
-  if (tenIcon) {
-    stampIcon(digits, TEN, tenIcon);
-  }
-  if (oneIcon) {
-    stampIcon(digits, ONE, oneIcon);
-  }
-  return digits;
+  return originalDigits;
 }
 
 function createTexture(data: Uint8ClampedArray, srgb: boolean) {
@@ -140,13 +148,15 @@ function createTexture(data: Uint8ClampedArray, srgb: boolean) {
 export interface LookTextures {
   map: THREE.Texture;
   emissiveMap: THREE.Texture;
-  /** Red: what light passes through for dice of glass. Green: roughness. Blue: metalness */
+  /**
+   * Red: 255 on the body and 0 on what is painted on it.
+   * Green: roughness. Blue: metalness.
+   */
   surfaceMap: THREE.Texture;
   normalMap: THREE.Texture;
 }
 
-interface Shapes {
-  digits: Uint8Array;
+interface ShapeTextures extends Shapes {
   normalMap: THREE.Texture;
 }
 
@@ -157,8 +167,10 @@ interface Shapes {
  */
 const MAX_SHAPES = 8;
 const MAX_LOOKS = 8;
-const shapesCache = new Map<string, Shapes>();
+const MAX_PATTERN_MAPS = 3;
+const shapesCache = new Map<string, ShapeTextures>();
 const lookCache = new Map<string, LookTextures>();
+const patternMapCache = new Map<string, Float32Array>();
 
 /** Get a value of a cache and mark it as the one used last */
 function touch<T>(cache: Map<string, T>, key: string): T | undefined {
@@ -176,7 +188,7 @@ function remember<T>(
   key: string,
   value: T,
   max: number,
-  dispose: (value: T) => void
+  dispose?: (value: T) => void
 ) {
   cache.set(key, value);
   if (cache.size > max) {
@@ -184,21 +196,51 @@ function remember<T>(
     const dropped = cache.get(oldest) as T;
     cache.delete(oldest);
     // A texture that is still on a die gets uploaded again when it is drawn
-    dispose(dropped);
+    dispose?.(dropped);
   }
+}
+
+/** The pattern of a texture of the original dice */
+function getPatternMap(
+  pattern: string,
+  image: HTMLImageElement,
+  mask: HTMLImageElement
+) {
+  let map = touch(patternMapCache, pattern);
+  if (!map) {
+    const pixels = getStrip(image);
+    const brightness = new Float32Array(CROP.width * CROP.height);
+    for (let i = 0; i < brightness.length; i++) {
+      brightness[i] =
+        pixels[i * 4] * 0.299 +
+        pixels[i * 4 + 1] * 0.587 +
+        pixels[i * 4 + 2] * 0.114;
+    }
+    // The digits of the texture and a few pixels around them
+    const spread = blur(getOriginalDigits(mask), CROP.width, CROP.height, 3);
+    const holes = new Uint8Array(spread.length);
+    for (let i = 0; i < holes.length; i++) {
+      holes[i] = spread[i] > 4 ? 1 : 0;
+    }
+    map = buildPatternMap(brightness, holes, CROP.width, CROP.height);
+    remember(patternMapCache, pattern, map, MAX_PATTERN_MAPS);
+  }
+  return map;
 }
 
 /**
  * The textures for a look.
  * The icons are the images of the icons of the look, if it has them.
+ * The pattern is the texture of the original dice the look takes its pattern from, if it does.
  */
 export function getLookTextures(
   look: DiceLook,
   mask: HTMLImageElement,
   tenIcon?: HTMLImageElement,
-  oneIcon?: HTMLImageElement
+  oneIcon?: HTMLImageElement,
+  pattern?: HTMLImageElement
 ): LookTextures {
-  const lookKey = JSON.stringify(look);
+  const lookKey = getPaintKey(look);
   const cached = touch(lookCache, lookKey);
   if (cached) {
     return cached;
@@ -207,9 +249,16 @@ export function getLookTextures(
   const shapesKey = `${look.tenIcon}|${look.oneIcon}`;
   let shapes = touch(shapesCache, shapesKey);
   if (!shapes) {
-    const digits = getDigits(mask, tenIcon, oneIcon);
+    const digits = Uint8Array.from(getOriginalDigits(mask));
+    if (tenIcon) {
+      stampIcon(digits, TEN, tenIcon);
+    }
+    if (oneIcon) {
+      stampIcon(digits, ONE, oneIcon);
+    }
     shapes = {
       digits,
+      outline: paintOutline(digits, CROP.width, CROP.height),
       normalMap: createTexture(
         paintNormals(digits, CROP.width, CROP.height),
         false
@@ -220,7 +269,11 @@ export function getLookTextures(
     );
   }
 
-  const painted = paintLook(look, shapes.digits, LAYOUT);
+  const patternMap =
+    isTexturePattern(look.pattern) && pattern
+      ? getPatternMap(look.pattern, pattern, mask)
+      : undefined;
+  const painted = paintLook(look, shapes, LAYOUT, patternMap);
   const textures: LookTextures = {
     map: createTexture(painted.albedo, true),
     emissiveMap: createTexture(painted.emissive, true),

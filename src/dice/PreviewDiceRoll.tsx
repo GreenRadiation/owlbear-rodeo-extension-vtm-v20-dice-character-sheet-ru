@@ -2,7 +2,11 @@ import * as THREE from "three";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 
-import { getDiceToRoll, useDiceControlsStore } from "../controls/store";
+import {
+  getCurrentLook,
+  getDiceToRoll,
+  useDiceControlsStore,
+} from "../controls/store";
 import { Dice } from "./Dice";
 import { DiceThrower } from "../helpers/DiceThrower";
 import { DiceVector3 } from "../types/DiceVector3";
@@ -23,7 +27,7 @@ import {
 export function PreviewDiceRoll() {
   const pool = useDiceControlsStore((state) => state.pool);
   const diceSet = useDiceControlsStore((state) => state.diceSet);
-  const look = useDiceControlsStore((state) => state.look);
+  const look = useDiceControlsStore(getCurrentLook);
 
   const dice = useMemo(() => getDiceToRoll(pool, diceSet), [pool, diceSet]);
 

@@ -1,11 +1,21 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_LOOK, DiceLook, PATTERNS } from "../../dice/look";
-import { PaintLayout, getPatternMix, paintLook, paintNormals } from "./paint";
+import { DEFAULT_LOOK, DRAWN_PATTERNS, DiceLook } from "../../dice/look";
+import {
+  PaintLayout,
+  Shapes,
+  buildPatternMap,
+  getDetailSize,
+  getPaintKey,
+  getPatternMix,
+  paintLook,
+  paintNormals,
+  paintOutline,
+} from "./paint";
 
 describe("getPatternMix", () => {
   it("stays between the two colors", () => {
-    for (const pattern of PATTERNS) {
+    for (const pattern of DRAWN_PATTERNS) {
       for (let i = 0; i < 400; i++) {
         const x = (i * 37) % 512;
         const y = (i * 91) % 1104;
@@ -17,7 +27,7 @@ describe("getPatternMix", () => {
   });
 
   it("is the same every time", () => {
-    for (const pattern of PATTERNS) {
+    for (const pattern of DRAWN_PATTERNS) {
       expect(getPatternMix(pattern, 123, 456, 0.3)).toBe(
         getPatternMix(pattern, 123, 456, 0.3)
       );
@@ -36,7 +46,7 @@ describe("getPatternMix", () => {
   });
 
   it("uses both colors in every pattern but the solid one", () => {
-    for (const pattern of PATTERNS) {
+    for (const pattern of DRAWN_PATTERNS) {
       if (pattern === "solid") {
         continue;
       }
@@ -65,13 +75,24 @@ describe("paintLook", () => {
     ten: { x: 1, y: 0, width: 1, height: 1 },
     one: { x: 2, y: 0, width: 1, height: 1 },
   };
-  const digits = new Uint8Array([0, 255, 255, 255]);
+  const digits: Shapes = {
+    digits: new Uint8Array([0, 255, 255, 255]),
+    outline: new Uint8Array(4),
+  };
+  const blank: Shapes = {
+    digits: new Uint8Array(4),
+    outline: new Uint8Array(4),
+  };
   const look: DiceLook = {
     ...DEFAULT_LOOK,
     body: "#102030",
     body2: "#ffffff",
     pattern: "solid",
     digits: "#00ff00",
+    digits2: "",
+    outline: "",
+    digitsRoughness: 0.8,
+    digitsMetalness: 0,
     tenColor: "#ff0000",
     oneColor: "",
     glow: 0,
@@ -104,25 +125,148 @@ describe("paintLook", () => {
     const { surface } = paintLook(look, digits, layout);
     // Lets light through, as rough and as metallic as asked
     expect(pixel(surface, 0)).toEqual([255, 51, 255]);
-    // Solid, rough and not a metal
-    expect(pixel(surface, 3)).toEqual([0, 210, 0]);
+    // Painted over: as rough and as metallic as the digits are set to be
+    expect(pixel(surface, 3)).toEqual([0, 204, 0]);
+    const golden = paintLook(
+      { ...look, digitsRoughness: 0.2, digitsMetalness: 1 },
+      digits,
+      layout
+    ).surface;
+    expect(pixel(golden, 3)).toEqual([0, 51, 255]);
   });
 
   it("mixes in the second color by the strength of the pattern", () => {
     const patterned = { ...look, pattern: "halves" as const };
     const full = paintLook(
       { ...patterned, patternStrength: 1 },
-      new Uint8Array(4),
+      blank,
       layout
     ).albedo;
     expect(pixel(full, 0)).toEqual([16, 32, 48]);
     expect(pixel(full, 3)).toEqual([255, 255, 255]);
     const none = paintLook(
       { ...patterned, patternStrength: 0 },
-      new Uint8Array(4),
+      blank,
       layout
     ).albedo;
     expect(pixel(none, 3)).toEqual([16, 32, 48]);
+  });
+
+  it("takes the pattern of a texture from its map", () => {
+    const map = new Float32Array([0, 0.5, 1, 1]);
+    const { albedo } = paintLook(
+      { ...look, pattern: "galaxy", patternStrength: 1 },
+      blank,
+      layout,
+      map
+    );
+    expect(pixel(albedo, 0)).toEqual([16, 32, 48]);
+    expect(pixel(albedo, 1)).toEqual([136, 144, 152]);
+    expect(pixel(albedo, 2)).toEqual([255, 255, 255]);
+  });
+
+  it("puts the pattern on the digits when they have a second color", () => {
+    const { albedo } = paintLook(
+      {
+        ...look,
+        pattern: "halves",
+        patternStrength: 1,
+        digits2: "#0000ff",
+        tenColor: "",
+      },
+      digits,
+      layout
+    );
+    // The first half of the die has the first color, the second half the second one
+    expect(pixel(albedo, 1)).toEqual([0, 255, 0]);
+    expect(pixel(albedo, 3)).toEqual([0, 0, 255]);
+  });
+
+  it("draws the line around the digits when it has a color", () => {
+    const lined: Shapes = {
+      digits: new Uint8Array(4),
+      outline: new Uint8Array([255, 0, 0, 0]),
+    };
+    expect(pixel(paintLook(look, lined, layout).albedo, 0)).toEqual([
+      16, 32, 48,
+    ]);
+    const painted = paintLook({ ...look, outline: "#ffffff" }, lined, layout);
+    expect(pixel(painted.albedo, 0)).toEqual([255, 255, 255]);
+    // The line is paint like the digits
+    expect(pixel(painted.surface, 0)).toEqual([0, 204, 0]);
+  });
+});
+
+describe("getPaintKey", () => {
+  it("only changes with what is painted", () => {
+    const key = getPaintKey(DEFAULT_LOOK);
+    // Set up in the material, the textures stay
+    expect(getPaintKey({ ...DEFAULT_LOOK, clearcoat: 0.1 })).toBe(key);
+    expect(getPaintKey({ ...DEFAULT_LOOK, engraving: -1 })).toBe(key);
+    expect(getPaintKey({ ...DEFAULT_LOOK, iridescenceHue: 0.9 })).toBe(key);
+    expect(getPaintKey({ ...DEFAULT_LOOK, glow: 0 })).toBe(key);
+    // Painted
+    expect(getPaintKey({ ...DEFAULT_LOOK, body: "#000000" })).not.toBe(key);
+    expect(getPaintKey({ ...DEFAULT_LOOK, roughness: 0.9 })).not.toBe(key);
+    expect(getPaintKey({ ...DEFAULT_LOOK, glow: 0.5 })).not.toBe(key);
+    expect(getPaintKey({ ...DEFAULT_LOOK, tenIcon: "" })).not.toBe(key);
+  });
+});
+
+describe("getDetailSize", () => {
+  it("is the usual size in the middle of the slider", () => {
+    expect(getDetailSize(0.5)).toBe(1);
+    expect(getDetailSize(0)).toBeCloseTo(1 / 3);
+    expect(getDetailSize(1)).toBeCloseTo(3);
+  });
+});
+
+describe("paintOutline", () => {
+  it("is around the digits and not on them", () => {
+    const width = 20;
+    const digits = new Uint8Array(width * width);
+    for (let y = 8; y < 12; y++) {
+      for (let x = 8; x < 12; x++) {
+        digits[y * width + x] = 255;
+      }
+    }
+    const outline = paintOutline(digits, width, width);
+    expect(outline[10 * width + 10]).toBe(0);
+    expect(outline[10 * width + 7]).toBeGreaterThan(200);
+    expect(outline[10 * width + 1]).toBe(0);
+  });
+});
+
+describe("buildPatternMap", () => {
+  it("stretches the brightness to the whole range", () => {
+    const brightness = new Float32Array(100);
+    for (let i = 0; i < 100; i++) {
+      brightness[i] = 50 + i;
+    }
+    const map = buildPatternMap(brightness, new Uint8Array(100), 10, 10);
+    expect(map[0]).toBe(0);
+    expect(map[99]).toBe(1);
+    expect(map[50]).toBeGreaterThan(0.4);
+    expect(map[50]).toBeLessThan(0.6);
+  });
+
+  it("fills the digits of the texture in from what is around them", () => {
+    // A flat texture with a bright digit in the middle
+    const width = 9;
+    const brightness = new Float32Array(width * width).fill(100);
+    const holes = new Uint8Array(width * width);
+    for (let y = 3; y < 6; y++) {
+      for (let x = 3; x < 6; x++) {
+        brightness[y * width + x] = 255;
+        holes[y * width + x] = 1;
+      }
+    }
+    // Something to stretch between
+    brightness[0] = 0;
+    brightness[1] = 200;
+    const map = buildPatternMap(brightness, holes, width, width);
+    // The digit is gone: its pixels are like the ones around it
+    expect(map[4 * width + 4]).toBeCloseTo(map[4 * width + 1], 5);
   });
 });
 

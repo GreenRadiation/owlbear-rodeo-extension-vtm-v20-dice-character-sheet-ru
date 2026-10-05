@@ -6,7 +6,12 @@
  * player, the patterns use their own hash and not Math.random.
  */
 
-import { DiceLook, Pattern, parseColor } from "../../dice/look";
+import {
+  DiceLook,
+  DrawnPattern,
+  isTexturePattern,
+  parseColor,
+} from "../../dice/look";
 
 /** A rectangle of a texture in pixels */
 export interface Rect {
@@ -28,9 +33,15 @@ export interface PaintLayout {
   one: Rect;
 }
 
-/** Roughness of the paint the digits are filled with, as in the textures of the original dice */
-const DIGIT_ROUGHNESS = 210;
-/** How strong the engraving of the digits is */
+/** What is drawn on the faces of a die, for every pixel from 0 to 255 */
+export interface Shapes {
+  /** How much of the pixel is a digit or an icon */
+  digits: Uint8Array;
+  /** How much of the pixel is the line around a digit */
+  outline: Uint8Array;
+}
+
+/** How strong the engraving of the digits is in the normal map */
 const ENGRAVING = 0.25;
 
 function hash(x: number, y: number) {
@@ -94,14 +105,24 @@ function speckles(x: number, y: number) {
 }
 
 /**
+ * How many times bigger or smaller than usual the details of a pattern are
+ * for the scale of a look: a third at 0, the usual size at 0.5, three times at 1.
+ */
+export function getDetailSize(patternScale: number) {
+  return Math.pow(3, (patternScale - 0.5) * 2);
+}
+
+/**
  * How much of the second color of the body a pixel gets, 0 to 1.
  * `pole` is where the pixel is between the poles of the die, 0 to 1.
+ * `size` is how big the details are compared to their usual size.
  */
 export function getPatternMix(
-  pattern: Pattern,
+  pattern: DrawnPattern,
   x: number,
   y: number,
-  pole: number
+  pole: number,
+  size = 1
 ): number {
   switch (pattern) {
     case "solid":
@@ -111,14 +132,19 @@ export function getPatternMix(
     case "halves":
       return smoothstep(0.495, 0.505, pole);
     case "rings":
-      return smoothstep(0.35, 0.65, 0.5 + 0.5 * Math.sin(pole * Math.PI * 9));
+      return smoothstep(
+        0.35,
+        0.65,
+        0.5 + 0.5 * Math.sin((pole * Math.PI * 9) / size)
+      );
     case "marble": {
-      const turbulence = clouds(x / 120, y / 120);
-      const veins = 0.5 + 0.5 * Math.sin((pole * 2 + turbulence * 5) * Math.PI);
+      const turbulence = clouds(x / 120 / size, y / 120 / size);
+      const veins =
+        0.5 + 0.5 * Math.sin(((pole * 2) / size + turbulence * 5) * Math.PI);
       return smoothstep(0.25, 0.75, veins);
     }
     case "speckles":
-      return speckles(x, y);
+      return speckles(x / size, y / size);
   }
 }
 
@@ -137,20 +163,49 @@ export interface PaintedTextures {
   /** The glow of the digits, sRGB */
   emissive: Uint8ClampedArray;
   /**
-   * Red: what light passes through for dice of glass, the digits are solid.
+   * Red: 255 on the body and 0 on what is painted on it. Tells where light
+   * passes through dice of glass and where the lacquer of the body is.
    * Green: roughness. Blue: metalness.
    */
   surface: Uint8ClampedArray;
 }
 
 /**
+ * The part of a look that changes what is painted.
+ * The rest of a look only sets up the material and needs no new textures.
+ */
+export function getPaintKey(look: DiceLook) {
+  return JSON.stringify([
+    look.body,
+    look.body2,
+    look.pattern,
+    look.patternStrength,
+    isTexturePattern(look.pattern) ? 0 : look.patternScale,
+    look.digits,
+    look.digits2,
+    look.outline,
+    look.glow > 0,
+    look.digitsRoughness,
+    look.digitsMetalness,
+    look.tenColor,
+    look.oneColor,
+    look.tenIcon,
+    look.oneIcon,
+    look.roughness,
+    look.metalness,
+  ]);
+}
+
+/**
  * Paint the textures of a look.
- * `digits` is how much of every pixel is a digit, 0 to 255.
+ * `patternMap` is the pattern of a look whose pattern comes from a texture:
+ * how much of the second color every pixel gets, 0 to 1.
  */
 export function paintLook(
   look: DiceLook,
-  digits: Uint8Array,
-  layout: PaintLayout
+  shapes: Shapes,
+  layout: PaintLayout,
+  patternMap?: Float32Array
 ): PaintedTextures {
   const { width, height } = layout;
   const albedo = new Uint8ClampedArray(width * height * 4);
@@ -160,41 +215,72 @@ export function paintLook(
   const body = parseColor(look.body);
   const body2 = parseColor(look.body2);
   const digitColor = parseColor(look.digits);
-  const tenColor = look.tenColor ? parseColor(look.tenColor) : digitColor;
-  const oneColor = look.oneColor ? parseColor(look.oneColor) : digitColor;
+  const digitColor2 = look.digits2 ? parseColor(look.digits2) : null;
+  const tenColor = look.tenColor ? parseColor(look.tenColor) : null;
+  const oneColor = look.oneColor ? parseColor(look.oneColor) : null;
+  const outlineColor = look.outline ? parseColor(look.outline) : null;
   const roughness = look.roughness * 255;
   const metalness = look.metalness * 255;
+  const digitsRoughness = look.digitsRoughness * 255;
+  const digitsMetalness = look.digitsMetalness * 255;
   const glows = look.glow > 0;
   const poleLength = layout.poleEnd - layout.poleStart;
+  const drawn = isTexturePattern(look.pattern) ? null : look.pattern;
+  const size = getDetailSize(look.patternScale);
+  const color = [0, 0, 0];
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const pixel = y * width + x;
       const i = pixel * 4;
-      const digit = digits[pixel] / 255;
+      const digit = shapes.digits[pixel] / 255;
+      const line = outlineColor ? shapes.outline[pixel] / 255 : 0;
       const mix =
-        getPatternMix(look.pattern, x, y, (x - layout.poleStart) / poleLength) *
-        look.patternStrength;
-      const color =
+        (drawn
+          ? getPatternMix(
+              drawn,
+              x,
+              y,
+              (x - layout.poleStart) / poleLength,
+              size
+            )
+          : patternMap
+          ? patternMap[pixel]
+          : 0) * look.patternStrength;
+
+      // The color of the digit this pixel belongs to
+      const own =
         digit === 0
-          ? digitColor
+          ? null
           : inside(layout.ten, x, y)
           ? tenColor
           : inside(layout.one, x, y)
           ? oneColor
-          : digitColor;
+          : null;
       for (let channel = 0; channel < 3; channel++) {
-        const bodyChannel =
-          body[channel] + (body2[channel] - body[channel]) * mix;
-        albedo[i + channel] =
-          bodyChannel + (color[channel] - bodyChannel) * digit;
+        color[channel] = own
+          ? own[channel]
+          : digitColor2
+          ? digitColor[channel] +
+            (digitColor2[channel] - digitColor[channel]) * mix
+          : digitColor[channel];
+      }
+
+      for (let channel = 0; channel < 3; channel++) {
+        let value = body[channel] + (body2[channel] - body[channel]) * mix;
+        if (outlineColor) {
+          value += (outlineColor[channel] - value) * line;
+        }
+        albedo[i + channel] = value + (color[channel] - value) * digit;
         emissive[i + channel] = glows ? color[channel] * digit : 0;
       }
       albedo[i + 3] = 255;
       emissive[i + 3] = 255;
-      surface[i] = 255 * (1 - digit);
-      surface[i + 1] = roughness + (DIGIT_ROUGHNESS - roughness) * digit;
-      surface[i + 2] = metalness * (1 - digit);
+      // What is painted on the body: the digit and the line around it
+      const paint = Math.max(digit, line);
+      surface[i] = 255 * (1 - paint);
+      surface[i + 1] = roughness + (digitsRoughness - roughness) * paint;
+      surface[i + 2] = metalness + (digitsMetalness - metalness) * paint;
       surface[i + 3] = 255;
     }
   }
@@ -203,8 +289,8 @@ export function paintLook(
 }
 
 /** Blur with a box of the given radius, one pass in each direction */
-function blur(
-  source: Uint8Array,
+export function blur(
+  source: ArrayLike<number>,
   width: number,
   height: number,
   radius: number
@@ -231,6 +317,20 @@ function blur(
     }
   }
   return result;
+}
+
+/** A line a few pixels wide around the digits */
+export function paintOutline(
+  digits: Uint8Array,
+  width: number,
+  height: number
+): Uint8Array {
+  const spread = blur(digits, width, height, 4);
+  const outline = new Uint8Array(width * height);
+  for (let i = 0; i < outline.length; i++) {
+    outline[i] = Math.min(255, spread[i] * 4) * (1 - digits[i] / 255);
+  }
+  return outline;
 }
 
 /**
@@ -263,4 +363,90 @@ export function paintNormals(
     }
   }
   return normals;
+}
+
+/**
+ * Turn the brightness of a texture of the original dice into a pattern:
+ * how much of the second color every pixel gets, 0 for the darkest parts of
+ * the texture and 1 for the brightest.
+ *
+ * The digits are a part of those textures. `holes` marks the pixels of the
+ * digits (anything but 0): they are filled in from what is around them,
+ * otherwise an old "0" would show under the icon that replaces it.
+ */
+export function buildPatternMap(
+  brightness: Float32Array,
+  holes: Uint8Array,
+  width: number,
+  height: number
+): Float32Array {
+  const map = Float32Array.from(brightness);
+  const known = new Uint8Array(width * height);
+  let pending: number[] = [];
+  for (let i = 0; i < known.length; i++) {
+    if (holes[i]) {
+      pending.push(i);
+    } else {
+      known[i] = 1;
+    }
+  }
+
+  // Grow the known pixels into the holes one ring at a time
+  while (pending.length > 0) {
+    const filled: number[] = [];
+    const values: number[] = [];
+    const left: number[] = [];
+    for (const i of pending) {
+      const x = i % width;
+      let sum = 0;
+      let count = 0;
+      if (x > 0 && known[i - 1]) {
+        sum += map[i - 1];
+        count++;
+      }
+      if (x < width - 1 && known[i + 1]) {
+        sum += map[i + 1];
+        count++;
+      }
+      if (i >= width && known[i - width]) {
+        sum += map[i - width];
+        count++;
+      }
+      if (i < known.length - width && known[i + width]) {
+        sum += map[i + width];
+        count++;
+      }
+      if (count > 0) {
+        filled.push(i);
+        values.push(sum / count);
+      } else {
+        left.push(i);
+      }
+    }
+    if (filled.length === 0) {
+      // Nothing known to grow from
+      break;
+    }
+    for (let n = 0; n < filled.length; n++) {
+      map[filled[n]] = values[n];
+      known[filled[n]] = 1;
+    }
+    pending = left;
+  }
+
+  // Stretch to the whole range, ignoring the few darkest and brightest pixels
+  const sample: number[] = [];
+  for (let i = 0; i < map.length; i += 7) {
+    if (!holes[i]) {
+      sample.push(map[i]);
+    }
+  }
+  sample.sort((a, b) => a - b);
+  const low = sample[Math.floor(sample.length * 0.02)] ?? 0;
+  const high = sample[Math.floor(sample.length * 0.98)] ?? 1;
+  const range = high - low || 1;
+  for (let i = 0; i < map.length; i++) {
+    map[i] = Math.min(1, Math.max(0, (map[i] - low) / range));
+  }
+  return map;
 }

@@ -43,5 +43,12 @@ export const diceSets: DiceSet[] = [
   createSet("NEBULA"),
   createSet("SUNRISE"),
   createSet("WALNUT"),
+  // Two slots of custom dice, see `getCustomSlot` in controls/store.ts
   createSet("CUSTOM"),
+  {
+    ...createSet("CUSTOM"),
+    id: "CUSTOM2_STANDARD",
+    name: "custom dice 2",
+    dice: [{ id: "CUSTOM2_STANDARD_D10", type: "D10", style: "CUSTOM" }],
+  },
 ];

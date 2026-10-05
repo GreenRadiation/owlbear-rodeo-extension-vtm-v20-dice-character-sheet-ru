@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEFAULT_LOOK,
-  FINISHES,
+  FINISH_PRESETS,
   PATTERNS,
+  SECOND_LOOK,
   parseColor,
   randomLook,
   sanitizeLook,
@@ -20,21 +21,41 @@ describe("sanitizeLook", () => {
 
   it("keeps a valid look as it is", () => {
     const look = {
+      ...SECOND_LOOK,
       body: "#102030",
-      body2: "#ffffff",
-      pattern: "rings",
-      patternStrength: 0.35,
-      digits: "#000000",
-      glow: 1,
-      tenColor: "",
-      oneColor: "#ff0000",
+      pattern: "walnut",
+      digits2: "#00ff00",
+      outline: "#000000",
+      engraving: -0.75,
+      digitsCoated: false,
       tenIcon: "",
       oneIcon: "star",
-      finish: "glass",
-      roughness: 0,
-      metalness: 0.5,
+      transmission: 1,
+      iridescenceHue: 0.05,
     };
     expect(sanitizeLook(look, ICONS)).toEqual(look);
+  });
+
+  it("fills what is missing from the look it is given", () => {
+    expect(sanitizeLook({ body: "#000000" }, ICONS, SECOND_LOOK)).toEqual({
+      ...SECOND_LOOK,
+      body: "#000000",
+    });
+  });
+
+  it("reads the looks of the first version with a named finish", () => {
+    const old = sanitizeLook(
+      { finish: "glass", roughness: 0.6, body: "#00ff00" },
+      ICONS
+    );
+    expect(old.transmission).toBe(1);
+    expect(old.clearcoat).toBe(FINISH_PRESETS.glass.clearcoat);
+    // What the player had changed after picking the finish stays
+    expect(old.roughness).toBe(0.6);
+    // A look of this version isn't touched by a stray finish
+    expect(
+      sanitizeLook({ finish: "glass", clearcoat: 0.3 }, ICONS).transmission
+    ).toBe(DEFAULT_LOOK.transmission);
   });
 
   it("replaces what is wrong and clamps numbers", () => {
@@ -47,7 +68,8 @@ describe("sanitizeLook", () => {
         digits: 5,
         glow: -1,
         tenColor: "#12345",
-        finish: "wood",
+        engraving: -5,
+        digitsCoated: "yes",
         roughness: Number.NaN,
         metalness: "1",
       },
@@ -61,7 +83,8 @@ describe("sanitizeLook", () => {
     expect(look.digits).toBe(DEFAULT_LOOK.digits);
     expect(look.glow).toBe(0);
     expect(look.tenColor).toBe(DEFAULT_LOOK.tenColor);
-    expect(look.finish).toBe(DEFAULT_LOOK.finish);
+    expect(look.engraving).toBe(-1);
+    expect(look.digitsCoated).toBe(DEFAULT_LOOK.digitsCoated);
     expect(look.roughness).toBe(DEFAULT_LOOK.roughness);
     expect(look.metalness).toBe(DEFAULT_LOOK.metalness);
   });
@@ -90,7 +113,6 @@ describe("randomLook", () => {
       const look = randomLook(ICONS, seeded(seed));
       expect(sanitizeLook(look, ICONS)).toEqual(look);
       expect(PATTERNS).toContain(look.pattern);
-      expect(FINISHES).toContain(look.finish);
     }
   });
 

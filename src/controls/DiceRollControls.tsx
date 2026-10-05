@@ -19,7 +19,12 @@ import { RerollDiceIcon } from "../icons/RerollDiceIcon";
 import { GradientOverlay } from "./GradientOverlay";
 import { useDiceRollStore } from "../dice/store";
 import { RollResult, WIDE_RESULT_WIDTH } from "./RollResult";
-import { getDiceToRoll, isCustomDiceSet, useDiceControlsStore } from "./store";
+import {
+  getCurrentLook,
+  getDiceToRoll,
+  isCustomDiceSet,
+  useDiceControlsStore,
+} from "./store";
 import { faceToValue } from "../v20/roll";
 import {
   getTrayMode,
@@ -91,7 +96,7 @@ function DicePickedControls() {
           scale: mode.diceScale,
           tray: getTrayModelWidth(mode.width),
           look: isCustomDiceSet(diceSet)
-            ? useDiceControlsStore.getState().look
+            ? getCurrentLook(useDiceControlsStore.getState())
             : undefined,
         },
         speedMultiplier
@@ -291,11 +296,16 @@ function FinishedRollControls() {
           <Tooltip title="Перебросить все" sx={{ pointerEvents: "all" }}>
             <IconButton
               onClick={() => {
-                // The size of the tray and the dice may have changed since the roll
+                // The tray and the dice may have been changed in the settings since the roll
                 const mode = getTrayMode(useSettingsStore.getState().settings);
+                const controls = useDiceControlsStore.getState();
                 reroll(undefined, undefined, {
                   scale: mode.diceScale,
                   tray: getTrayModelWidth(mode.width),
+                  style: controls.diceSet.dice[0].style,
+                  look: isCustomDiceSet(controls.diceSet)
+                    ? getCurrentLook(controls)
+                    : undefined,
                 });
               }}
               sx={{ pointerEvents: "all", color: "white" }}

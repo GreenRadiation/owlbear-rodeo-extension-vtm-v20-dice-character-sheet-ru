@@ -8,6 +8,7 @@ import { DiceThrower, getRandomDiceThrow } from "../helpers/DiceThrower";
 import { generateDiceId } from "../helpers/generateDiceId";
 import { isDie } from "../types/Die";
 import { DiceThrow } from "../types/DiceThrow";
+import { DiceStyle } from "../types/DiceStyle";
 import { DEFAULT_DIFFICULTY, clampDifficulty } from "../v20/roll";
 
 interface DiceRollState {
@@ -37,12 +38,13 @@ interface DiceRollState {
   clearRoll: (ids?: string) => void;
   /**
    * Reroll select ids of dice or reroll all dice by passing `undefined`.
-   * When all dice are rerolled the roll can move to another size of the dice and the tray.
+   * When all dice are rerolled the roll can move to the tray and the dice
+   * that are picked in the settings now.
    */
   reroll: (
     ids?: string[],
     manualThrows?: Record<string, DiceThrow>,
-    size?: Pick<DiceRoll, "scale" | "tray">
+    current?: Pick<DiceRoll, "scale" | "tray" | "look"> & { style: DiceStyle }
   ) => void;
   finishDieRoll: (id: string, number: number, transform: DiceTransform) => void;
   setDifficulty: (difficulty: number) => void;
@@ -87,7 +89,7 @@ export const useDiceRollStore = create<DiceRollState>()(
         state.difficulty = DEFAULT_DIFFICULTY;
         state.specialty = false;
       }),
-    reroll: (ids, manualThrows, size) => {
+    reroll: (ids, manualThrows, current) => {
       set((state) => {
         if (!state.roll) {
           return;
@@ -96,9 +98,15 @@ export const useDiceRollStore = create<DiceRollState>()(
           // Rerolling everything is a new roll
           state.difficulty = DEFAULT_DIFFICULTY;
           state.specialty = false;
-          if (size) {
-            state.roll.scale = size.scale;
-            state.roll.tray = size.tray;
+          if (current) {
+            state.roll.scale = current.scale;
+            state.roll.tray = current.tray;
+            state.roll.look = current.look;
+            for (const die of state.roll.dice) {
+              if (isDie(die)) {
+                die.style = current.style;
+              }
+            }
           }
         }
         const trayWidth = state.roll.tray || 1;

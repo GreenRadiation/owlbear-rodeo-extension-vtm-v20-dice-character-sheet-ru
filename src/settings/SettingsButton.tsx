@@ -20,7 +20,11 @@ import ExpandIcon from "@mui/icons-material/ExpandMoreRounded";
 import CollapseIcon from "@mui/icons-material/ExpandLessRounded";
 
 import { SlideTransition } from "../controls/SlideTransition";
-import { isCustomDiceSet, useDiceControlsStore } from "../controls/store";
+import {
+  getCustomSlot,
+  isCustomDiceSet,
+  useDiceControlsStore,
+} from "../controls/store";
 import { CustomDicePreview } from "../previews/CustomDicePreview";
 import { DiceLookSettings } from "./DiceLookSettings";
 import { diceSets } from "../sets/diceSets";
@@ -279,7 +283,7 @@ function SymbolSetting({
 function DiceStyleSetting() {
   const diceSet = useDiceControlsStore((state) => state.diceSet);
   const changeDiceSet = useDiceControlsStore((state) => state.changeDiceSet);
-  const look = useDiceControlsStore((state) => state.look);
+  const looks = useDiceControlsStore((state) => state.looks);
 
   return (
     <Stack gap={0.5}>
@@ -300,7 +304,7 @@ function DiceStyleSetting() {
             }}
           >
             {isCustomDiceSet(set) ? (
-              <CustomDicePreview look={look} size={36} />
+              <CustomDicePreview look={looks[getCustomSlot(set)]} size={36} />
             ) : (
               <img src={set.previewImage} width={36} height={36} alt="" />
             )}
@@ -308,10 +312,17 @@ function DiceStyleSetting() {
         ))}
       </Stack>
       <Typography variant="caption" color="text.secondary">
-        Последний куб в ряду — свой: цвета, узор, значки и поверхность
-        настраиваются ниже. Другие игроки видят твои кубы такими же.
+        Два последних куба в ряду — свои: цвета, узор, значки и поверхность
+        настраиваются ниже, у каждого отдельно. Другие игроки видят твои кубы
+        такими же.
       </Typography>
-      {isCustomDiceSet(diceSet) && <DiceLookSettings />}
+      {isCustomDiceSet(diceSet) && (
+        // The key starts the editor over for the other slot
+        <DiceLookSettings
+          key={getCustomSlot(diceSet)}
+          slot={getCustomSlot(diceSet)}
+        />
+      )}
     </Stack>
   );
 }

@@ -5,7 +5,12 @@ import { DiceSet } from "../types/DiceSet";
 import { Die } from "../types/Die";
 import { generateDiceId } from "../helpers/generateDiceId";
 import { getPluginId } from "../plugin/getPluginId";
-import { DiceLook, sanitizeLook } from "../dice/look";
+import {
+  DEFAULT_LOOK,
+  DiceLook,
+  SECOND_LOOK,
+  sanitizeLook,
+} from "../dice/look";
 import { ICON_IDS } from "../materials/custom/icons";
 
 /** Who sees a roll: everyone, only the GM or no one but the player who rolls */
@@ -16,19 +21,24 @@ const VISIBILITIES: Visibility[] = ["ALL", "GM", "NONE"];
 export const MAX_POOL = 16;
 
 const DICE_SET_STORAGE_KEY = getPluginId("dice-set");
-const DICE_LOOK_STORAGE_KEY = getPluginId("dice-look");
+/** Where the look of every slot of custom dice is kept */
+const DICE_LOOK_STORAGE_KEYS = [
+  getPluginId("dice-look"),
+  getPluginId("dice-look-2"),
+];
 
 interface DiceControlsState {
   diceSet: DiceSet;
-  /** The look of the custom dice of the player, used when the set of custom dice is picked */
-  look: DiceLook;
+  /** The looks of the custom dice of the player, one for every slot of custom dice */
+  looks: DiceLook[];
   /** How many dice will be rolled */
   pool: number;
   /** Who sees the next roll */
   visibility: Visibility;
   diceRollPressTime: number | null;
   changeDiceSet: (diceSet: DiceSet) => void;
-  changeLook: (update: Partial<DiceLook>) => void;
+  /** Change the look of a slot of custom dice */
+  changeLook: (slot: number, update: Partial<DiceLook>) => void;
   resetPool: () => void;
   /** Add dice to the pool, a negative count removes them */
   addToPool: (count: number) => void;
@@ -55,21 +65,30 @@ function saveDiceSet(diceSet: DiceSet) {
   }
 }
 
-/** Restore the custom dice the player put together last time */
-function loadLook(): DiceLook {
-  try {
-    return sanitizeLook(
-      JSON.parse(localStorage.getItem(DICE_LOOK_STORAGE_KEY) || "{}"),
-      ICON_IDS
-    );
-  } catch {
-    return sanitizeLook(undefined, ICON_IDS);
-  }
+/** What a slot of custom dice starts from */
+export function getDefaultLook(slot: number): DiceLook {
+  return slot === 1 ? SECOND_LOOK : DEFAULT_LOOK;
 }
 
-function saveLook(look: DiceLook) {
+/** Restore the custom dice the player put together last time */
+function loadLooks(): DiceLook[] {
+  return DICE_LOOK_STORAGE_KEYS.map((key, slot) => {
+    const fallback = getDefaultLook(slot);
+    try {
+      return sanitizeLook(
+        JSON.parse(localStorage.getItem(key) || "{}"),
+        ICON_IDS,
+        fallback
+      );
+    } catch {
+      return sanitizeLook(undefined, ICON_IDS, fallback);
+    }
+  });
+}
+
+function saveLook(slot: number, look: DiceLook) {
   try {
-    localStorage.setItem(DICE_LOOK_STORAGE_KEY, JSON.stringify(look));
+    localStorage.setItem(DICE_LOOK_STORAGE_KEYS[slot], JSON.stringify(look));
   } catch {
     // Storage can be unavailable, the look just won't be remembered
   }
@@ -78,7 +97,7 @@ function saveLook(look: DiceLook) {
 export const useDiceControlsStore = create<DiceControlsState>()(
   immer((set, get) => ({
     diceSet: loadDiceSet(),
-    look: loadLook(),
+    looks: loadLooks(),
     pool: 0,
     visibility: "ALL",
     diceRollPressTime: null,
@@ -88,11 +107,15 @@ export const useDiceControlsStore = create<DiceControlsState>()(
         state.diceSet = diceSet;
       });
     },
-    changeLook(update) {
-      const look = sanitizeLook({ ...get().look, ...update }, ICON_IDS);
-      saveLook(look);
+    changeLook(slot, update) {
+      const current = get().looks[slot];
+      if (!current) {
+        return;
+      }
+      const look = sanitizeLook({ ...current, ...update }, ICON_IDS, current);
+      saveLook(slot, look);
       set((state) => {
-        state.look = look;
+        state.looks[slot] = look;
       });
     },
     resetPool() {
@@ -125,6 +148,16 @@ export const useDiceControlsStore = create<DiceControlsState>()(
 /** If the dice of a set are the custom dice of the player */
 export function isCustomDiceSet(diceSet: DiceSet) {
   return diceSet.dice[0].style === "CUSTOM";
+}
+
+/** Which of the slots of custom dice a set is, 0 for a set that isn't one */
+export function getCustomSlot(diceSet: DiceSet) {
+  return diceSet.id.startsWith("CUSTOM2") ? 1 : 0;
+}
+
+/** The look custom dice of the set that is picked have */
+export function getCurrentLook(state: DiceControlsState): DiceLook {
+  return state.looks[getCustomSlot(state.diceSet)];
 }
 
 /** Generate new dice for a pool using the die of the given set */
