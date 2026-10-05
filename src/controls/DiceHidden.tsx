@@ -1,16 +1,24 @@
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 
-import HiddenOnIcon from "@mui/icons-material/VisibilityOffRounded";
-import HiddenOffIcon from "@mui/icons-material/VisibilityRounded";
+import AllIcon from "@mui/icons-material/VisibilityRounded";
+import GmIcon from "@mui/icons-material/AdminPanelSettingsRounded";
+import NoneIcon from "@mui/icons-material/VisibilityOffRounded";
 
-import { useDiceControlsStore } from "./store";
+import { Visibility, useDiceControlsStore } from "./store";
 import { useDiceRollStore } from "../dice/store";
 
+const TITLES: Record<Visibility, string> = {
+  ALL: "Бросок видят все",
+  GM: "Бросок видит только мастер",
+  NONE: "Бросок не видит никто",
+};
+
+/** Button that picks who sees the next roll: everyone, only the GM or no one */
 export function DiceHidden() {
-  const hidden = useDiceControlsStore((state) => state.diceHidden);
-  const toggleDiceHidden = useDiceControlsStore(
-    (state) => state.toggleDiceHidden
+  const visibility = useDiceControlsStore((state) => state.visibility);
+  const cycleVisibility = useDiceControlsStore(
+    (state) => state.cycleVisibility
   );
 
   const clearRoll = useDiceRollStore((state) => state.clearRoll);
@@ -22,18 +30,17 @@ export function DiceHidden() {
   }
 
   return (
-    <Tooltip
-      title={hidden ? "Бросок скрыт" : "Бросок виден всем"}
-      placement="top"
-      disableInteractive
-    >
+    <Tooltip title={TITLES[visibility]} placement="top" disableInteractive>
       <IconButton
+        aria-label={TITLES[visibility]}
         onClick={() => {
-          toggleDiceHidden();
+          cycleVisibility();
           clearRollIfNeeded();
         }}
       >
-        {hidden ? <HiddenOnIcon /> : <HiddenOffIcon />}
+        {visibility === "ALL" && <AllIcon />}
+        {visibility === "GM" && <GmIcon />}
+        {visibility === "NONE" && <NoneIcon />}
       </IconButton>
     </Tooltip>
   );

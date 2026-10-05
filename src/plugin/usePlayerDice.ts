@@ -4,6 +4,7 @@ import { DiceRoll } from "../types/DiceRoll";
 import { DiceThrow } from "../types/DiceThrow";
 import { DiceTransform } from "../types/DiceTransform";
 import { getPluginId } from "./getPluginId";
+import { useRole } from "./useRole";
 import {
   DEFAULT_DIFFICULTY,
   clampDifficulty,
@@ -12,27 +13,52 @@ import {
 } from "../v20/roll";
 
 export function usePlayerDice(player?: Player) {
-  const diceRoll = useMemo(() => {
+  const role = useRole();
+
+  const sharedRoll = useMemo(() => {
     return player?.metadata[getPluginId("roll")] as DiceRoll | undefined;
   }, [player]);
 
+  /** A hidden roll that this player sees because they are the GM and the roll was made for the GM */
+  const gmOnly = Boolean(
+    sharedRoll?.hidden && sharedRoll.gm && role === "GM"
+  );
+
+  const diceRoll = useMemo(
+    () => (sharedRoll && gmOnly ? { ...sharedRoll, hidden: false } : sharedRoll),
+    [sharedRoll, gmOnly]
+  );
+
+  // The dice of a roll for the GM are shared with everyone, don't use them
+  // unless this player is allowed to see the roll
+  const secret = Boolean(diceRoll?.hidden);
+
   const rollThrows = useMemo(() => {
+    if (secret) {
+      return undefined;
+    }
     return player?.metadata[getPluginId("rollThrows")] as
       | Record<string, DiceThrow>
       | undefined;
-  }, [player]);
+  }, [player, secret]);
 
   const rollValues = useMemo(() => {
+    if (secret) {
+      return undefined;
+    }
     return player?.metadata[getPluginId("rollValues")] as
       | Record<string, number | null>
       | undefined;
-  }, [player]);
+  }, [player, secret]);
 
   const rollTransforms = useMemo(() => {
+    if (secret) {
+      return undefined;
+    }
     return player?.metadata[getPluginId("rollTransforms")] as
       | Record<string, DiceTransform | null>
       | undefined;
-  }, [player]);
+  }, [player, secret]);
 
   const finishedRollTransforms = useMemo(() => {
     if (!rollTransforms) {
@@ -108,6 +134,7 @@ export function usePlayerDice(player?: Player) {
 
   return {
     diceRoll,
+    gmOnly,
     rollThrows,
     rollValues,
     rollTransforms,

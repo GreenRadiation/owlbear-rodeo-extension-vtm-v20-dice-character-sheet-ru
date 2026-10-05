@@ -5,7 +5,10 @@ import { Dice } from "./Dice";
  * See `Dice` type for examples of usage
  */
 export interface DiceRoll extends Dice {
+  /** The values of the roll aren't shown to the other players */
   hidden?: boolean;
+  /** A hidden roll that the GM can see */
+  gm?: boolean;
   /**
    * Size of the dice relative to the dice of the original roller (1 if undefined).
    * Part of the roll because everyone watching has to simulate dice of the same size.

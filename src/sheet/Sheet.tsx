@@ -51,18 +51,32 @@ function addDice(count: number) {
   }
 }
 
-/** Button that adds the dice of a trait to the pool */
-function DiceButton({ dice, label }: { dice: number; label: string }) {
+/**
+ * Button that adds the dice of a trait to the pool: a die icon and the name
+ * of the trait, the whole thing is clickable.
+ * Without a name it is just the icon, for traits whose name is being edited.
+ */
+function RollButton({
+  dice,
+  label,
+  name,
+}: {
+  dice: number;
+  /** What the trait is called for screen readers and the tooltip */
+  label: string;
+  /** The name to show next to the icon */
+  name?: string;
+}) {
   return (
     <button
       type="button"
-      className="sheet-icon-button sheet-dice"
-      title={`Добавить в пул: ${dice}`}
+      className={`sheet-roll${dice > 0 ? "" : " empty"}`}
+      title={`${label}: добавить в пул ${dice}`}
       aria-label={`${label}: добавить в пул ${dice}`}
-      disabled={dice <= 0}
-      onClick={() => addDice(dice)}
+      onClick={() => dice > 0 && addDice(dice)}
     >
       <DiceIcon fontSize="inherit" />
+      {name && <span>{name}</span>}
     </button>
   );
 }
@@ -226,21 +240,23 @@ function TraitRow({
     <>
       <div className="sheet-row">
         <div className="sheet-row-name">
-          <span title={name}>{name}</span>
-          <button
-            type="button"
-            className={`sheet-icon-button sheet-arrow${
-              specialty ? " has-specialty" : ""
-            }`}
-            title="Специализация"
-            aria-label={`${name}: специализация`}
-            aria-expanded={specialtyOpen}
-            onClick={() => setSpecialtyOpen(!specialtyOpen)}
-          >
-            {specialtyOpen ? "▴" : "▾"}
-          </button>
+          <RollButton dice={value + blood} label={name} name={name} />
+          {/* On a locked sheet there is nothing to open without a speciality */}
+          {(!sheet.locked || specialty) && (
+            <button
+              type="button"
+              className={`sheet-icon-button sheet-arrow${
+                specialty ? " has-specialty" : ""
+              }`}
+              title="Специализация"
+              aria-label={`${name}: специализация`}
+              aria-expanded={specialtyOpen}
+              onClick={() => setSpecialtyOpen(!specialtyOpen)}
+            >
+              {specialtyOpen ? "▴" : "▾"}
+            </button>
+          )}
         </div>
-        <DiceButton dice={value + blood} label={name} />
         <Dots
           label={name}
           value={value}
@@ -297,13 +313,19 @@ function NamedTraits({
         return (
           <div className="sheet-row" key={index}>
             <div className="sheet-row-name">
-              <TextField
-                label={`${title} ${index + 1}`}
-                value={trait.name}
-                list={list}
-                disabled={locked}
-                onChange={(name) => change(index, { name })}
-              />
+              {locked ? (
+                <RollButton dice={trait.value} label={label} name={label} />
+              ) : (
+                <>
+                  <RollButton dice={trait.value} label={label} />
+                  <TextField
+                    label={`${title} ${index + 1}`}
+                    value={trait.name}
+                    list={list}
+                    onChange={(name) => change(index, { name })}
+                  />
+                </>
+              )}
             </div>
             {!locked && (
               <button
@@ -316,7 +338,6 @@ function NamedTraits({
                 <CloseIcon fontSize="inherit" />
               </button>
             )}
-            <DiceButton dice={trait.value} label={label} />
             <Dots
               label={label}
               value={trait.value}
@@ -589,9 +610,12 @@ export function Sheet({ sheet, update }: { sheet: SheetData; update: Update }) {
           {VIRTUE_KEYS.map((key) => (
             <div className="sheet-row" key={key}>
               <div className="sheet-row-name">
-                <span title={VIRTUE_NAMES[key]}>{VIRTUE_NAMES[key]}</span>
+                <RollButton
+                  dice={sheet.virtues[key]}
+                  label={VIRTUE_NAMES[key]}
+                  name={VIRTUE_NAMES[key]}
+                />
               </div>
-              <DiceButton dice={sheet.virtues[key]} label={VIRTUE_NAMES[key]} />
               <Dots
                 label={VIRTUE_NAMES[key]}
                 value={sheet.virtues[key]}
@@ -636,23 +660,28 @@ export function Sheet({ sheet, update }: { sheet: SheetData; update: Update }) {
           <div className="sheet-block">
             <div className="sheet-row">
               <div className="sheet-row-name">
-                {locked && !sheet.path ? (
-                  <span>Человечность</span>
-                ) : (
-                  <TextField
-                    label="Человечность или Путь"
-                    value={sheet.path}
-                    list="sheet-paths"
-                    placeholder="Человечность"
-                    disabled={locked}
-                    onChange={(value) => set("path", value)}
+                {locked ? (
+                  <RollButton
+                    dice={sheet.humanity}
+                    label={sheet.path || "Человечность"}
+                    name={sheet.path || "Человечность"}
                   />
+                ) : (
+                  <>
+                    <RollButton
+                      dice={sheet.humanity}
+                      label={sheet.path || "Человечность"}
+                    />
+                    <TextField
+                      label="Человечность или Путь"
+                      value={sheet.path}
+                      list="sheet-paths"
+                      placeholder="Человечность"
+                      onChange={(value) => set("path", value)}
+                    />
+                  </>
                 )}
               </div>
-              <DiceButton
-                dice={sheet.humanity}
-                label={sheet.path || "Человечность"}
-              />
             </div>
             <div className="sheet-centered">
               <Dots
@@ -669,9 +698,8 @@ export function Sheet({ sheet, update }: { sheet: SheetData; update: Update }) {
           <div className="sheet-block">
             <div className="sheet-row">
               <div className="sheet-row-name">
-                <span>Воля</span>
+                <RollButton dice={sheet.willpower} label="Воля" name="Воля" />
               </div>
-              <DiceButton dice={sheet.willpower} label="Воля" />
             </div>
             <div className="sheet-centered">
               <Dots

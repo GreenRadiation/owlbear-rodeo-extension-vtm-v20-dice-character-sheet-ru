@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
@@ -11,16 +11,21 @@ import ButtonBase from "@mui/material/ButtonBase";
 
 import CloseIcon from "@mui/icons-material/CloseRounded";
 import HiddenIcon from "@mui/icons-material/VisibilityOffRounded";
+import GmIcon from "@mui/icons-material/AdminPanelSettingsRounded";
 import RollIcon from "@mui/icons-material/ArrowForwardRounded";
 
 import { RerollDiceIcon } from "../icons/RerollDiceIcon";
 
 import { GradientOverlay } from "./GradientOverlay";
 import { useDiceRollStore } from "../dice/store";
-import { RollResult } from "./RollResult";
+import { RollResult, WIDE_RESULT_WIDTH } from "./RollResult";
 import { getDiceToRoll, useDiceControlsStore } from "./store";
 import { faceToValue } from "../v20/roll";
-import { getTrayMode, useSettingsStore } from "../settings/store";
+import {
+  getTrayMode,
+  getTrayModelWidth,
+  useSettingsStore,
+} from "../settings/store";
 
 const jiggle = keyframes`
 0% { transform: translate(0, 0) rotate(0deg); }
@@ -69,7 +74,7 @@ function DicePickedControls() {
 
   const pool = useDiceControlsStore((state) => state.pool);
   const diceSet = useDiceControlsStore((state) => state.diceSet);
-  const hidden = useDiceControlsStore((state) => state.diceHidden);
+  const visibility = useDiceControlsStore((state) => state.visibility);
   const resetPool = useDiceControlsStore((state) => state.resetPool);
 
   function handleRoll() {
@@ -79,7 +84,13 @@ function DicePickedControls() {
       const speedMultiplier = Math.max(1, Math.min(10, activeTimeSeconds * 2));
       const mode = getTrayMode(useSettingsStore.getState().settings);
       startRoll(
-        { dice, hidden, scale: mode.diceScale, tray: mode.width },
+        {
+          dice,
+          hidden: visibility !== "ALL",
+          gm: visibility === "GM",
+          scale: mode.diceScale,
+          tray: getTrayModelWidth(mode.width),
+        },
         speedMultiplier
       );
       resetPool();
@@ -235,9 +246,27 @@ function FinishedRollControls() {
 
   const [resultsExpanded, setResultsExpanded] = useState(false);
 
+  // Measure the tray to lay out the result of the roll
+  const measureRef = useRef<HTMLDivElement>(null);
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const element = measureRef.current;
+    if (!element) {
+      return;
+    }
+    const observer = new ResizeObserver(() =>
+      setWide(element.clientWidth >= WIDE_RESULT_WIDTH)
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <>
-      <GradientOverlay top height={resultsExpanded ? 250 : 170} />
+      <GradientOverlay
+        top
+        height={(wide ? 110 : 170) + (resultsExpanded ? 80 : 0)}
+      />
       <Box
         sx={{
           position: "absolute",
@@ -248,6 +277,7 @@ function FinishedRollControls() {
           padding: 3,
         }}
         component="div"
+        ref={measureRef}
       >
         <Stack
           direction="row"
@@ -292,15 +322,21 @@ function FinishedRollControls() {
             onDifficultyChange={setDifficulty}
             specialty={specialty}
             onSpecialtyChange={setSpecialty}
+            wide={wide}
             expanded={resultsExpanded}
             onExpand={setResultsExpanded}
           />
         )}
-        {roll?.hidden && (
-          <Tooltip title="Скрытый бросок" sx={{ pointerEvents: "all" }}>
-            <HiddenIcon htmlColor="white" />
-          </Tooltip>
-        )}
+        {roll?.hidden &&
+          (roll.gm ? (
+            <Tooltip title="Этот бросок видит только мастер">
+              <GmIcon htmlColor="white" sx={{ pointerEvents: "all" }} />
+            </Tooltip>
+          ) : (
+            <Tooltip title="Этот бросок не видит никто">
+              <HiddenIcon htmlColor="white" sx={{ pointerEvents: "all" }} />
+            </Tooltip>
+          ))}
       </Stack>
     </>
   );

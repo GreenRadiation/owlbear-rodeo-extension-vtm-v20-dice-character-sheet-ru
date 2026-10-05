@@ -13,6 +13,7 @@ import { getHistoryKey } from "./RollHistorySync";
 import { useRoomMetadata } from "./roomStorage";
 import { decodeHistory } from "../v20/history";
 import { formatValue } from "../v20/roll";
+import { useSymbols } from "../settings/store";
 
 /** The history of the player using the extension, has to be rendered when the plugin is ready */
 export function OwnRollHistoryButton() {
@@ -32,6 +33,8 @@ export function RollHistoryButton({
     () => decodeHistory(metadata[getHistoryKey(playerId)]).reverse(),
     [metadata, playerId]
   );
+
+  const symbols = useSymbols();
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
@@ -65,7 +68,7 @@ export function RollHistoryButton({
               color={index === 0 ? "text.primary" : "text.secondary"}
               noWrap
             >
-              {values.map(formatValue).join(" ")}
+              {values.map((value) => formatValue(value, symbols)).join(" ")}
             </Typography>
           ))}
         </Stack>

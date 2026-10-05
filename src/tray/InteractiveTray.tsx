@@ -1,10 +1,5 @@
 import { Canvas } from "@react-three/fiber";
-import {
-  ContactShadows,
-  Environment,
-  OrbitControls,
-  PerspectiveCamera,
-} from "@react-three/drei";
+import { ContactShadows, Environment, OrbitControls } from "@react-three/drei";
 
 import Box from "@mui/material/Box";
 
@@ -17,7 +12,13 @@ import { useDebugStore } from "../debug/store";
 import { TraySuspense } from "./TraySuspense";
 import { PreviewDiceRoll } from "../dice/PreviewDiceRoll";
 import { useDiceRollStore } from "../dice/store";
-import { getTrayMode, useSettingsStore } from "../settings/store";
+import {
+  getTrayModelWidth,
+  getTrayMode,
+  isTrayLandscape,
+  useSettingsStore,
+} from "../settings/store";
+import { TrayCamera } from "./TrayCamera";
 
 /** Dice tray that controls the dice roll store */
 export function InteractiveTray() {
@@ -29,14 +30,14 @@ export function InteractiveTray() {
     (state) => getTrayMode(state.settings).width
   );
   const rollWidth = useDiceRollStore((state) => state.roll?.tray);
-  const trayWidth = rollWidth || settingsWidth;
+  const trayWidth = rollWidth || getTrayModelWidth(settingsWidth);
 
   return (
     <Box
       component="div"
       borderRadius={1}
       height="var(--tray-height, 100vh)"
-      width={`calc(var(--tray-height, 100vh) / 2 * ${settingsWidth})`}
+      width={`calc(var(--tray-height, 100vh) * ${settingsWidth})`}
       flexShrink={0}
       overflow="hidden"
       position="relative"
@@ -64,11 +65,9 @@ export function InteractiveTray() {
             <Tray widthScale={trayWidth} />
             <PreviewDiceRoll />
             <InteractiveDiceRoll />
-            <PerspectiveCamera
-              makeDefault
-              fov={28}
-              position={[0, 4.3, 0]}
-              rotation={[-Math.PI / 2, 0, 0]}
+            <TrayCamera
+              trayWidth={trayWidth}
+              landscape={isTrayLandscape(settingsWidth)}
             />
             {allowOrbit && <OrbitControls />}
           </AudioListenerProvider>

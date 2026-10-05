@@ -6,6 +6,10 @@ import { Die } from "../types/Die";
 import { generateDiceId } from "../helpers/generateDiceId";
 import { getPluginId } from "../plugin/getPluginId";
 
+/** Who sees a roll: everyone, only the GM or no one but the player who rolls */
+export type Visibility = "ALL" | "GM" | "NONE";
+const VISIBILITIES: Visibility[] = ["ALL", "GM", "NONE"];
+
 /** The most dice that can be rolled at once */
 export const MAX_POOL = 16;
 
@@ -15,13 +19,15 @@ interface DiceControlsState {
   diceSet: DiceSet;
   /** How many dice will be rolled */
   pool: number;
-  diceHidden: boolean;
+  /** Who sees the next roll */
+  visibility: Visibility;
   diceRollPressTime: number | null;
   changeDiceSet: (diceSet: DiceSet) => void;
   resetPool: () => void;
   /** Add dice to the pool, a negative count removes them */
   addToPool: (count: number) => void;
-  toggleDiceHidden: () => void;
+  /** Switch to the next kind of visibility */
+  cycleVisibility: () => void;
   setDiceRollPressTime: (time: number | null) => void;
 }
 
@@ -47,7 +53,7 @@ export const useDiceControlsStore = create<DiceControlsState>()(
   immer((set) => ({
     diceSet: loadDiceSet(),
     pool: 0,
-    diceHidden: false,
+    visibility: "ALL",
     diceRollPressTime: null,
     changeDiceSet(diceSet) {
       saveDiceSet(diceSet);
@@ -65,9 +71,10 @@ export const useDiceControlsStore = create<DiceControlsState>()(
         state.pool = Math.min(MAX_POOL, Math.max(0, state.pool + count));
       });
     },
-    toggleDiceHidden() {
+    cycleVisibility() {
       set((state) => {
-        state.diceHidden = !state.diceHidden;
+        const index = VISIBILITIES.indexOf(state.visibility);
+        state.visibility = VISIBILITIES[(index + 1) % VISIBILITIES.length];
       });
     },
     setDiceRollPressTime(time) {

@@ -34,12 +34,12 @@ export function DiceRollSync() {
         }
 
         if (changed) {
-          // Hide values if needed
-          const throws = state.roll?.hidden ? undefined : state.rollThrows;
-          const values = state.roll?.hidden ? undefined : state.rollValues;
-          const transforms = state.roll?.hidden
-            ? undefined
-            : state.rollTransforms;
+          // Don't share the dice of a hidden roll unless the GM is allowed to see it.
+          // Everyone receives a roll that is only for the GM, their extension doesn't show it
+          const secret = Boolean(state.roll?.hidden && !state.roll.gm);
+          const throws = secret ? undefined : state.rollThrows;
+          const values = secret ? undefined : state.rollValues;
+          const transforms = secret ? undefined : state.rollTransforms;
           OBR.player.setMetadata({
             [getPluginId("roll")]: state.roll,
             [getPluginId("rollThrows")]: throws,

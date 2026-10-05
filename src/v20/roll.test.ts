@@ -109,11 +109,24 @@ describe("display", () => {
   });
 
   it("shows tens and ones as symbols", () => {
-    expect([10, 8, 1].map(formatValue)).toEqual(["☥", "8", "☠"]);
+    expect([10, 8, 1].map((value) => formatValue(value))).toEqual([
+      "☥",
+      "8",
+      "☠\uFE0E",
+    ]);
+    const symbols = { ten: "0", one: "x" };
+    expect([10, 8, 1].map((value) => formatValue(value, symbols))).toEqual([
+      "0",
+      "8",
+      "x",
+    ]);
   });
 
   it("shows a botch as a skull and anything else as a number", () => {
-    expect(formatOutcome({ successes: 0, botch: true })).toBe("☠");
+    expect(formatOutcome({ successes: 0, botch: true })).toBe("☠\uFE0E");
+    expect(
+      formatOutcome({ successes: 0, botch: true }, { ten: "0", one: "x" })
+    ).toBe("x");
     expect(formatOutcome({ successes: 0, botch: false })).toBe("0");
     expect(formatOutcome({ successes: 4, botch: false })).toBe("4");
   });

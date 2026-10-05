@@ -12,6 +12,7 @@ import { SlideTransition } from "../controls/SlideTransition";
 import { PlayerTray } from "./PlayerTray";
 import { PlayerAvatar } from "./PlayerAvatar";
 import { getPluginId } from "./getPluginId";
+import { useFocusStore } from "./focusStore";
 
 export function PartyTrays() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -29,6 +30,13 @@ export function PartyTrays() {
       return;
     }
   }, [players, focusedTray]);
+
+  // Let the rest of the window know whose tray is open
+  const focusedPlayerId = focusedPlayer?.id || null;
+  useEffect(() => {
+    useFocusStore.setState({ playerId: focusedPlayerId });
+    return () => useFocusStore.setState({ playerId: null });
+  }, [focusedPlayerId]);
 
   const theme = useTheme();
 
@@ -64,6 +72,12 @@ export function PartyTrays() {
         fullScreen
         TransitionComponent={SlideTransition}
         hideBackdrop
+        // Cover the sidebar and the tray but leave the character sheet usable
+        container={() => document.getElementById("tray-area")}
+        sx={{ position: "absolute" }}
+        disableEnforceFocus
+        disableAutoFocus
+        disableScrollLock
         PaperProps={{
           sx: {
             bgcolor:

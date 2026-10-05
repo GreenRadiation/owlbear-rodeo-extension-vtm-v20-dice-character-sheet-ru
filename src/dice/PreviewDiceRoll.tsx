@@ -13,7 +13,11 @@ import { getNextBuffer } from "../audio/getAudioBuffer";
 import { random } from "../helpers/random";
 import { WeightClass } from "../types/WeightClass";
 import { DiceScaleContext } from "./scale";
-import { getTrayMode, useSettingsStore } from "../settings/store";
+import {
+  getTrayMode,
+  getTrayModelWidth,
+  useSettingsStore,
+} from "../settings/store";
 
 export function PreviewDiceRoll() {
   const pool = useDiceControlsStore((state) => state.pool);
@@ -25,7 +29,10 @@ export function PreviewDiceRoll() {
     getTrayMode(state.settings)
   );
 
-  const diceThrower = useMemo(() => new DiceThrower(width), [width]);
+  const diceThrower = useMemo(
+    () => new DiceThrower(getTrayModelWidth(width)),
+    [width]
+  );
   const isDefault = pool === 0;
   useEffect(() => {
     if (isDefault) {

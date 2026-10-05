@@ -1,6 +1,11 @@
 import { useState } from "react";
 
 import Button from "@mui/material/Button";
+import Checkbox from "@mui/material/Checkbox";
+import Collapse from "@mui/material/Collapse";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Dialog from "@mui/material/Dialog";
 import Divider from "@mui/material/Divider";
 import IconButton from "@mui/material/IconButton";
@@ -11,10 +16,13 @@ import Typography from "@mui/material/Typography";
 
 import SettingsIcon from "@mui/icons-material/SettingsRounded";
 import CloseIcon from "@mui/icons-material/CloseRounded";
+import ExpandIcon from "@mui/icons-material/ExpandMoreRounded";
+import CollapseIcon from "@mui/icons-material/ExpandLessRounded";
 
 import { SlideTransition } from "../controls/SlideTransition";
 import { PluginGate } from "../plugin/PluginGate";
 import { RoomDataSettings } from "../plugin/RoomDataSettings";
+import { ONE_SYMBOLS, TEN_SYMBOLS } from "../v20/roll";
 import {
   DICE_SCALE_STEP,
   MAX_DICE_SCALE,
@@ -221,12 +229,50 @@ function ModeSettings({ large }: { large: boolean }) {
   );
 }
 
-function Settings({ onClose }: { onClose: () => void }) {
-  const previewHeight = useSettingsStore(
-    (state) => state.settings.previewHeight
+/** A choice between a few symbols */
+function SymbolSetting({
+  label,
+  value,
+  choices,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  choices: string[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <Stack direction="row" alignItems="center" gap={1}>
+      <Typography flex={1} noWrap>
+        {label}
+      </Typography>
+      <ToggleButtonGroup
+        size="small"
+        exclusive
+        aria-label={label}
+        value={value}
+        onChange={(_, value) => value && onChange(value)}
+      >
+        {choices.map((choice) => (
+          <ToggleButton
+            key={choice}
+            value={choice}
+            sx={{ minWidth: 34, py: 0.25, fontSize: "1.1rem", lineHeight: 1.4 }}
+          >
+            {choice}
+          </ToggleButton>
+        ))}
+      </ToggleButtonGroup>
+    </Stack>
   );
+}
+
+function Settings({ onClose }: { onClose: () => void }) {
+  const settings = useSettingsStore((state) => state.settings);
   const changeSettings = useSettingsStore((state) => state.changeSettings);
   const resetSettings = useSettingsStore((state) => state.resetSettings);
+
+  const [specialOpen, setSpecialOpen] = useState(false);
 
   return (
     <Stack p={2} gap={2} sx={{ overflowX: "hidden", overflowY: "auto" }}>
@@ -240,10 +286,11 @@ function Settings({ onClose }: { onClose: () => void }) {
         <Typography>Лоток</Typography>
         <Typography variant="caption" color="text.secondary">
           У лотка два режима со своими настройками. Переключает их кнопка со
-          стрелками в боковой панели или кнопки ниже. Ширина и размер кубов
-          действуют со следующего броска, остальные игроки видят твой лоток и
-          кубы такими же. Лист персонажа снизу занимает ширину лотка, справа
-          высоту лотка; его текст подстраивается под ширину колонок.
+          стрелками в боковой панели или кнопки ниже. Ширина считается от
+          высоты: 100% это квадрат, больше 100% это лоток, лежащий на боку.
+          Ширина и размер кубов действуют со следующего броска. Лист персонажа
+          снизу занимает ширину лотка, справа высоту лотка; его текст
+          подстраивается под ширину колонок.
         </Typography>
       </Stack>
       <Stack direction="row" gap={2}>
@@ -255,7 +302,7 @@ function Settings({ onClose }: { onClose: () => void }) {
       <Stack gap={0.5}>
         <Setting
           label="Броски других игроков"
-          value={Math.max(0, PREVIEW_HEIGHTS.indexOf(previewHeight))}
+          value={Math.max(0, PREVIEW_HEIGHTS.indexOf(settings.previewHeight))}
           format={(index) => (index === 0 ? "не показывать" : `размер ${index}`)}
           min={0}
           max={PREVIEW_HEIGHTS.length - 1}
@@ -266,12 +313,69 @@ function Settings({ onClose }: { onClose: () => void }) {
           }
         />
         <Typography variant="caption" color="text.secondary">
-          Маленькие лотки в правом нижнем углу экрана.
+          Маленькие лотки в правом нижнем углу экрана. Отдельного игрока можно
+          убрать оттуда кнопкой в его лотке, который открывается по его иконке.
         </Typography>
+        <FormControlLabel
+          label="Только бросок последнего игрока"
+          control={
+            <Checkbox
+              size="small"
+              checked={settings.previewLastOnly}
+              onChange={(event) =>
+                changeSettings({ previewLastOnly: event.target.checked })
+              }
+            />
+          }
+        />
+        {settings.hiddenPreviews.length > 0 && (
+          <Stack direction="row" alignItems="center" gap={1}>
+            <Typography variant="body2" color="text.secondary" flex={1}>
+              Скрыто игроков: {settings.hiddenPreviews.length}
+            </Typography>
+            <Button
+              size="small"
+              color="inherit"
+              onClick={() => changeSettings({ hiddenPreviews: [] })}
+            >
+              Показывать всех
+            </Button>
+          </Stack>
+        )}
+      </Stack>
+      <Divider />
+      <Stack gap={1}>
+        <SymbolSetting
+          label="Десятка"
+          value={settings.tenSymbol}
+          choices={TEN_SYMBOLS}
+          onChange={(tenSymbol) => changeSettings({ tenSymbol })}
+        />
+        <SymbolSetting
+          label="Единица и ботч"
+          value={settings.oneSymbol}
+          choices={ONE_SYMBOLS}
+          onChange={(oneSymbol) => changeSettings({ oneSymbol })}
+        />
       </Stack>
       <PluginGate>
         <Divider />
-        <RoomDataSettings />
+        <Stack>
+          <Button
+            color="inherit"
+            sx={{ justifyContent: "space-between", textTransform: "none" }}
+            endIcon={specialOpen ? <CollapseIcon /> : <ExpandIcon />}
+            aria-expanded={specialOpen}
+            onClick={() => setSpecialOpen(!specialOpen)}
+          >
+            Специальные возможности
+          </Button>
+          <Collapse in={specialOpen} unmountOnExit>
+            <Stack pt={1}>
+              <RoomDataSettings />
+            </Stack>
+          </Collapse>
+        </Stack>
       </PluginGate>
       <Stack direction="row" justifyContent="space-between">
         <Button color="inherit" onClick={resetSettings}>

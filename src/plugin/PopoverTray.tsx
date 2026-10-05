@@ -1,4 +1,4 @@
-import { Environment, PerspectiveCamera } from "@react-three/drei";
+import { Environment } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { Player } from "@owlbear-rodeo/sdk";
 import { useEffect, useState } from "react";
@@ -18,12 +18,17 @@ import { PlayerDiceRoll } from "./PlayerDiceRoll";
 import { AudioListenerProvider } from "../audio/AudioListenerProvider";
 import { Tray } from "../tray/Tray";
 import { TraySuspense } from "../tray/TraySuspense";
+import { TrayCamera } from "../tray/TrayCamera";
 import { DiceRoll } from "../dice/DiceRoll";
 import { DiceRoll as DiceRollType } from "../types/DiceRoll";
 import { DiceThrow } from "../types/DiceThrow";
 import { DiceTransform } from "../types/DiceTransform";
 import { RollOutcome, formatOutcome } from "../v20/roll";
-import { DEFAULT_TRAY_WIDTH, getTrayPixelWidth } from "../settings/store";
+import {
+  DEFAULT_TRAY_MODEL_WIDTH,
+  getModelPixelWidth,
+  useSymbols,
+} from "../settings/store";
 
 /** Height of the bar with the name of the player under the tray */
 export const PREVIEW_NAME_HEIGHT = 32;
@@ -43,20 +48,27 @@ interface FinishedRoll {
 export function PopoverTray({
   player,
   height,
+  suppressed,
   onToggle,
   onOpen,
+  onRollStart,
 }: {
   player: Player;
   /** Height of the tray in pixels */
   height: number;
+  /** Keep track of the rolls of the player without showing the preview */
+  suppressed?: boolean;
   /** Tell how wide the preview is in pixels, 0 when it isn't shown */
   onToggle: (connectionId: string, width: number) => void;
   onOpen: (connectionId: string) => void;
+  /** Tell that the player has started a roll */
+  onRollStart: (connectionId: string) => void;
 }) {
   const { diceRoll, rollThrows, outcome, finishedRolling, finishedRollTransforms } =
     usePlayerDice(player);
 
   const theme = useTheme();
+  const symbols = useSymbols();
 
   // A roll the player has in their tray and lets everyone see
   const live = Boolean(diceRoll && !diceRoll.hidden);
@@ -93,15 +105,16 @@ export function PopoverTray({
   useEffect(() => {
     if (rolling) {
       setClosed(false);
+      onRollStart(player.connectionId);
     }
-  }, [rolling]);
+  }, [rolling, player.connectionId]);
 
-  const shown = !closed && (rolling || finished !== null);
+  const shown = !suppressed && !closed && (rolling || finished !== null);
 
   // The tray is as wide as it was for the roll it shows
   const shownRoll = live ? diceRoll : finished?.roll;
-  const trayWidth = shownRoll?.tray || DEFAULT_TRAY_WIDTH;
-  const width = getTrayPixelWidth(height, trayWidth);
+  const trayWidth = shownRoll?.tray || DEFAULT_TRAY_MODEL_WIDTH;
+  const width = getModelPixelWidth(height, trayWidth);
 
   useEffect(() => {
     onToggle(player.connectionId, shown ? width : 0);
@@ -154,13 +167,9 @@ export function PopoverTray({
                     />
                   )
                 )}
-                {/* The same view from above as the main tray so nothing is cut off */}
-                <PerspectiveCamera
-                  makeDefault
-                  fov={28}
-                  position={[0, 4.3, 0]}
-                  rotation={[-Math.PI / 2, 0, 0]}
-                />
+                {/* The same view from above as the main tray so nothing is cut off. */}
+                {/* A tray that lies on its side for its player is upright here */}
+                <TrayCamera trayWidth={trayWidth} />
               </AudioListenerProvider>
             </Canvas>
           </TraySuspense>
@@ -177,7 +186,9 @@ export function PopoverTray({
           noWrap
         >
           {player.name}
-          {shownOutcome && <span> | {formatOutcome(shownOutcome)}</span>}
+          {shownOutcome && (
+            <span> | {formatOutcome(shownOutcome, symbols)}</span>
+          )}
         </Typography>
       </ButtonBase>
       <IconButton

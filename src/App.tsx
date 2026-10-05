@@ -28,7 +28,13 @@ export function App() {
 
   return (
     <Stack direction={below ? "column" : "row"} height="100vh">
-      <Stack direction="row" flexShrink={0} justifyContent="center">
+      <Stack
+        direction="row"
+        flexShrink={0}
+        justifyContent="center"
+        position="relative"
+        id="tray-area"
+      >
         <Sidebar />
         <InteractiveTray />
       </Stack>

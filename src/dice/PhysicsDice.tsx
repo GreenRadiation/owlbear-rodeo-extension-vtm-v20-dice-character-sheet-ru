@@ -8,8 +8,6 @@ import {
 } from "@react-three/rapier";
 
 import { Die } from "../types/Die";
-import { getValueFromDiceGroup } from "../helpers/getValueFromDiceGroup";
-import { useFrame } from "@react-three/fiber";
 import { useAudioListener } from "../audio/AudioListenerProvider";
 import { getNextBuffer } from "../audio/getAudioBuffer";
 import { PhysicalMaterial } from "../types/PhysicalMaterial";
@@ -18,16 +16,37 @@ import { getDieDensity } from "../helpers/getDieDensity";
 import { DiceThrow } from "../types/DiceThrow";
 import { DiceTransform } from "../types/DiceTransform";
 import { DiceCollider } from "../colliders/DiceCollider";
-import { getD10TopFaceNormal, isD10Cocked } from "../helpers/d10Faces";
+import {
+  getD10TopFaceNormal,
+  getD10Value,
+  isD10Flat,
+} from "../helpers/d10Faces";
 
 /** Minium linear and angular speed before the dice roll is considered finished */
 const MIN_ROLL_FINISHED_SPEED = 0.005;
 /** Cool down in MS before dice audio can get played again */
 const AUDIO_COOLDOWN = 200;
-/** Force stop the physics roll after 8 seconds */
-const MAX_ROLL_TIME = 8000;
-/** How many times a die that came to rest leaning on something gets pushed to lie flat */
-const MAX_NUDGES = 4;
+/** Force stop the physics roll after 6 seconds */
+const MAX_ROLL_TIME = 6000;
+/**
+ * A die that lies flat and moves slower than this for a while is done.
+ * Dice that touch each other can tremble for seconds without ever getting
+ * under the minimum speed, there is no point in waiting for them.
+ */
+const SETTLE_LINEAR_SPEED = 0.03;
+const SETTLE_ANGULAR_SPEED = 0.15;
+/** Physics steps a die has to stay settled for: a quarter of a second */
+const SETTLE_STEPS = 30;
+/**
+ * A die that isn't flat and moves slower than this for a while has come to rest
+ * leaning on something. A tumbling die also gets this slow for a moment when it
+ * tips over an edge, hence the wait.
+ */
+const LEAN_SPEED = 0.03;
+/** Physics steps a die has to stay that slow for: a tenth of a second */
+const LEAN_STEPS = 12;
+/** How many times a die that came to rest leaning on something gets hopped away from it */
+const MAX_NUDGES = 3;
 /** Upwards speed of a nudge */
 const NUDGE_HOP_SPEED = 1.6;
 /** Sideways speed of a nudge */
@@ -38,6 +57,14 @@ const NUDGE_SPIN_SPEED = 6;
 const NUDGE_ESCALATION = 0.35;
 /** How much every next nudge of the same die turns away from the previous direction, in radians */
 const NUDGE_TURN = 1.2;
+
+/** Count something in development to be able to tune the physics from the browser console */
+function countDebug(name: "diceNudges") {
+  if (import.meta.env.DEV) {
+    const debug = window as unknown as Record<string, number | undefined>;
+    debug[name] = (debug[name] || 0) + 1;
+  }
+}
 
 function magnitude({ x, y, z }: { x: number; y: number; z: number }) {
   return Math.sqrt(x * x + y * y + z * z);
@@ -105,122 +132,141 @@ export function PhysicsDice({
   /**
    * Dice in a big pool can come to rest leaning on each other or on a wall
    * which makes it hard to tell what face is up.
-   * When that happens hop the die away from what it leans on so it lands flat.
-   * This runs inside the physics step and only uses the state of the simulation
-   * so every player watching the roll simulates the exact same nudge.
-   * The nudge doesn't depend on the numbers of the die so the roll stays fair.
+   *
+   * A die that leans a lot is hopped away from what it leans on so it lands flat.
+   * A die that only leans a little is left alone: its top face is easy to read
+   * and rerolling a die that looks fine feels unfair.
+   *
+   * A die is done when it lies flat and has been almost still for a moment.
+   * Waiting for it to stop completely takes seconds when dice touch and tremble.
+   *
+   * All of this runs inside the physics step and only uses the state of the
+   * simulation: every player watching the roll simulates the exact same thing,
+   * and nothing waits for a frame to be drawn, which browsers stop doing for
+   * windows that aren't visible.
+   * None of it depends on the numbers of the die so the roll stays fair.
    */
   const nudgesRef = useRef(0);
-  useAfterPhysicsStep(() => {
+  /** Physics steps the die has been at rest without lying flat for */
+  const leanStepsRef = useRef(0);
+  /** Physics steps the die has been lying flat and almost still for */
+  const settledStepsRef = useRef(0);
+
+  // Use the latest callback without restarting the roll when it changes
+  const onRollFinishedRef = useRef(onRollFinished);
+  onRollFinishedRef.current = onRollFinished;
+
+  /** Report the value of the die and stop it from moving again */
+  const finishRoll = useCallback(() => {
     const rigidBody = rigidBodyRef.current;
-    if (
-      !rigidBody ||
-      lockedRef.current ||
-      fixedTransform ||
-      nudgesRef.current >= MAX_NUDGES
-    ) {
+    if (!rigidBody || lockedRef.current) {
       return;
     }
-    const speed = magnitude(rigidBody.linvel()) + magnitude(rigidBody.angvel());
     const position = rigidBody.translation();
-    if (
-      speed < MIN_ROLL_FINISHED_SPEED &&
-      position.y < 1.5 &&
-      isD10Cocked(rigidBody.rotation())
-    ) {
-      const attempt = nudgesRef.current;
-      nudgesRef.current += 1;
-      if (import.meta.env.DEV) {
-        // Count the nudges to be able to tune them from the browser console
-        const debug = window as unknown as { diceNudges?: number };
-        debug.diceNudges = (debug.diceNudges || 0) + 1;
+    const rotation = rigidBody.rotation();
+    const transform = {
+      position: { x: position.x, y: position.y, z: position.z },
+      rotation: { x: rotation.x, y: rotation.y, z: rotation.z, w: rotation.w },
+    };
+    onRollFinishedRef.current?.(die.id, getD10Value(rotation), transform);
+    lockDice();
+  }, [die.id, lockDice]);
+
+  const nudge = useCallback((rigidBody: RapierRigidBody) => {
+    const attempt = nudgesRef.current;
+    nudgesRef.current += 1;
+    countDebug("diceNudges");
+    const position = rigidBody.translation();
+    // The top face of a leaning die tilts away from what the die leans on
+    // so its normal shows the way downhill
+    const normal = getD10TopFaceNormal(rigidBody.rotation());
+    let x = normal.x;
+    let z = normal.z;
+    let length = Math.sqrt(x * x + z * z);
+    if (length < 0.05) {
+      // No clear direction: go to the center of the tray
+      x = -position.x;
+      z = -position.z;
+      length = Math.sqrt(x * x + z * z);
+    }
+    if (length < 0.01) {
+      x = 1;
+      z = 0;
+      length = 1;
+    }
+    x /= length;
+    z /= length;
+    // A die that is still stuck after a nudge is wedged between other dice:
+    // push harder and turn the direction a bit more with every attempt
+    const strength = 1 + attempt * NUDGE_ESCALATION;
+    const turn = attempt * NUDGE_TURN;
+    const turnedX = x * Math.cos(turn) - z * Math.sin(turn);
+    const turnedZ = x * Math.sin(turn) + z * Math.cos(turn);
+    x = turnedX;
+    z = turnedZ;
+    rigidBody.setLinvel(
+      {
+        x: x * NUDGE_SLIDE_SPEED * strength,
+        y: NUDGE_HOP_SPEED * strength,
+        z: z * NUDGE_SLIDE_SPEED * strength,
+      },
+      true
+    );
+    // Spin around the horizontal axis perpendicular to the direction of the hop
+    rigidBody.setAngvel(
+      { x: z * NUDGE_SPIN_SPEED, y: 0, z: -x * NUDGE_SPIN_SPEED },
+      true
+    );
+  }, []);
+
+  useAfterPhysicsStep(() => {
+    const rigidBody = rigidBodyRef.current;
+    if (!rigidBody || lockedRef.current || fixedTransform) {
+      return;
+    }
+    const rotation = rigidBody.rotation();
+    const linearSpeed = magnitude(rigidBody.linvel());
+    const angularSpeed = magnitude(rigidBody.angvel());
+    // Ensure that the dice is in the tray
+    const inTray = rigidBody.translation().y < 1.5;
+
+    if (isD10Flat(rotation)) {
+      leanStepsRef.current = 0;
+      if (!inTray) {
+        settledStepsRef.current = 0;
+      } else if (linearSpeed + angularSpeed < MIN_ROLL_FINISHED_SPEED) {
+        finishRoll();
+      } else if (
+        linearSpeed < SETTLE_LINEAR_SPEED &&
+        angularSpeed < SETTLE_ANGULAR_SPEED
+      ) {
+        settledStepsRef.current += 1;
+        if (settledStepsRef.current >= SETTLE_STEPS) {
+          finishRoll();
+        }
+      } else {
+        settledStepsRef.current = 0;
       }
-      // The top face of a leaning die tilts away from what the die leans on
-      // so its normal shows the way downhill
-      const normal = getD10TopFaceNormal(rigidBody.rotation());
-      let x = normal.x;
-      let z = normal.z;
-      let length = Math.sqrt(x * x + z * z);
-      if (length < 0.05) {
-        // No clear direction: go to the center of the tray
-        x = -position.x;
-        z = -position.z;
-        length = Math.sqrt(x * x + z * z);
+      return;
+    }
+
+    settledStepsRef.current = 0;
+    if (!inTray || linearSpeed + angularSpeed >= LEAN_SPEED) {
+      leanStepsRef.current = 0;
+      return;
+    }
+    leanStepsRef.current += 1;
+    if (leanStepsRef.current >= LEAN_STEPS) {
+      leanStepsRef.current = 0;
+      // Came to rest leaning on something
+      if (nudgesRef.current < MAX_NUDGES) {
+        nudge(rigidBody);
+      } else {
+        // Nothing helped, the die stays as it is
+        finishRoll();
       }
-      if (length < 0.01) {
-        x = 1;
-        z = 0;
-        length = 1;
-      }
-      x /= length;
-      z /= length;
-      // A die that is still stuck after a nudge is wedged between other dice:
-      // push harder and turn the direction a bit more with every attempt
-      const strength = 1 + attempt * NUDGE_ESCALATION;
-      const turn = attempt * NUDGE_TURN;
-      const turnedX = x * Math.cos(turn) - z * Math.sin(turn);
-      const turnedZ = x * Math.sin(turn) + z * Math.cos(turn);
-      x = turnedX;
-      z = turnedZ;
-      rigidBody.setLinvel(
-        {
-          x: x * NUDGE_SLIDE_SPEED * strength,
-          y: NUDGE_HOP_SPEED * strength,
-          z: z * NUDGE_SLIDE_SPEED * strength,
-        },
-        true
-      );
-      // Spin around the horizontal axis perpendicular to the direction of the hop
-      rigidBody.setAngvel(
-        { x: z * NUDGE_SPIN_SPEED, y: 0, z: -x * NUDGE_SPIN_SPEED },
-        true
-      );
     }
   });
-
-  const checkRollFinished = useCallback(
-    (ignorePhysics?: boolean) => {
-      const rigidBody = rigidBodyRef.current;
-      const group = ref.current;
-      if (rigidBody && !lockedRef.current && group) {
-        // Get the total speed for the dice
-        const linVel = rigidBody.linvel();
-        const angVel = rigidBody.angvel();
-        const speed = magnitude(linVel) + magnitude(angVel);
-        // Ensure that the dice is in the tray
-        const validPosition = rigidBody.translation().y < 1.5;
-        // A die that isn't lying flat is about to get nudged by the physics step
-        const settled =
-          nudgesRef.current >= MAX_NUDGES ||
-          !isD10Cocked(rigidBody.rotation());
-        if (
-          ignorePhysics ||
-          (speed < MIN_ROLL_FINISHED_SPEED && validPosition && settled)
-        ) {
-          const value = getValueFromDiceGroup(group);
-          const position = rigidBody.translation();
-          const rotation = rigidBody.rotation();
-          const transform = {
-            position: { x: position.x, y: position.y, z: position.z },
-            rotation: {
-              x: rotation.x,
-              y: rotation.y,
-              z: rotation.z,
-              w: rotation.w,
-            },
-          };
-          onRollFinished?.(die.id, value, transform);
-          lockDice();
-        }
-      }
-    },
-    [die.id, lockDice]
-  );
-
-  const handleFrame = useCallback(() => {
-    checkRollFinished();
-  }, [checkRollFinished]);
-  useFrame(handleFrame);
 
   // Lock the dice when we have a manual transform
   useEffect(() => {
@@ -234,14 +280,14 @@ export function PhysicsDice({
     let timeout = setTimeout(() => {
       if (!lockedRef.current) {
         console.warn("Roll exceeded max roll time: stopping dice");
-        checkRollFinished(true);
+        finishRoll();
       }
     }, MAX_ROLL_TIME);
 
     return () => {
       clearTimeout(timeout);
     };
-  }, [checkRollFinished]);
+  }, [finishRoll]);
 
   const listener = useAudioListener();
   const lastAudioTimeRef = useRef(0);

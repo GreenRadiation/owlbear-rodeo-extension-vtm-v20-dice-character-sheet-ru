@@ -1,6 +1,13 @@
+import { useMemo } from "react";
 import create from "zustand";
 
 import { getPluginId } from "../plugin/getPluginId";
+import {
+  DEFAULT_SYMBOLS,
+  ONE_SYMBOLS,
+  Symbols,
+  TEN_SYMBOLS,
+} from "../v20/roll";
 
 export type SheetPlacement = "below" | "right";
 
@@ -13,8 +20,9 @@ export interface TrayMode {
   /** Height of the tray in pixels */
   height: number;
   /**
-   * Width of the tray relative to the tray of the original Owlbear Rodeo
-   * roller which is half as wide as it is high. 2 is a square tray.
+   * Width of the tray relative to its height: 1 is a square tray,
+   * 0.5 is the tray of the original Owlbear Rodeo roller.
+   * A tray wider than a square is the tray of the inverse width lying on its side.
    */
   width: number;
   /** Size of the dice relative to the dice of the original Owlbear Rodeo roller */
@@ -41,19 +49,25 @@ export interface Settings {
   trayLarge: boolean;
   /** Height of the previews of the rolls of other players, 0 turns the previews off */
   previewHeight: number;
+  /** Only show the preview of the player who rolled last */
+  previewLastOnly: boolean;
+  /** Ids of the players whose rolls don't get a preview */
+  hiddenPreviews: string[];
   /** If the character sheet is shown */
   sheetOpen: boolean;
+  /** How a ten and a one are written, see TEN_SYMBOLS and ONE_SYMBOLS */
+  tenSymbol: string;
+  oneSymbol: string;
 }
 
 export const MIN_TRAY_HEIGHT = 360;
 export const MAX_TRAY_HEIGHT = 1200;
 export const TRAY_HEIGHT_STEP = 20;
 
-export const MIN_TRAY_WIDTH = 1;
+export const MIN_TRAY_WIDTH = 0.5;
 export const MAX_TRAY_WIDTH = 2;
 export const TRAY_WIDTH_STEP = 0.1;
-/** The width of a tray when nothing else is known, for example of a player who hasn't rolled yet */
-export const DEFAULT_TRAY_WIDTH = 1.2;
+const DEFAULT_TRAY_WIDTH = 0.6;
 
 /** The choices for the height of the previews, the first one turns them off */
 export const PREVIEW_HEIGHTS = [0, 180, 240, 300, 380, 460, 560, 680];
@@ -67,6 +81,9 @@ export const MAX_SHEET_COLUMNS = 3;
 export const MIN_DICE_SCALE = 0.7;
 export const MAX_DICE_SCALE = 1.1;
 export const DICE_SCALE_STEP = 0.05;
+
+/** The most players that can be kept out of the previews */
+const MAX_HIDDEN_PREVIEWS = 30;
 
 export const defaultSettings: Settings = {
   // A small tray with the sheet right below it makes a narrow strip at the side of the screen
@@ -91,8 +108,19 @@ export const defaultSettings: Settings = {
   },
   trayLarge: false,
   previewHeight: 300,
+  previewLastOnly: false,
+  hiddenPreviews: [],
   sheetOpen: false,
+  tenSymbol: DEFAULT_SYMBOLS.ten,
+  oneSymbol: DEFAULT_SYMBOLS.one,
 };
+
+/**
+ * Version of the stored settings.
+ * 1: the width of the tray was relative to the original tray, 2 was a square.
+ * 2: the width of the tray is relative to its height, 1 is a square.
+ */
+const VERSION = 2;
 
 const STORAGE_KEY = getPluginId("settings");
 
@@ -151,11 +179,26 @@ function sanitizeMode(value: unknown, fallback: TrayMode): TrayMode {
   };
 }
 
+/** Bring the settings stored by an older version of the extension up to date */
+function migrate(stored: Stored): Stored {
+  if (stored.version === VERSION) {
+    return stored;
+  }
+  const migrated = { ...stored };
+  for (const key of ["small", "large"]) {
+    const mode = asRecord(stored[key]);
+    if (typeof mode.width === "number") {
+      migrated[key] = { ...mode, width: mode.width / 2 };
+    }
+  }
+  return migrated;
+}
+
 /** Make valid settings out of anything that was stored */
 export function sanitizeSettings(value: unknown): Settings {
-  const stored = asRecord(value);
+  const stored = migrate(asRecord(value));
   const d = defaultSettings;
-  // The first version of the settings had one size of dice and only the heights of the modes
+  // The very first settings had one size of dice and only the heights of the modes
   const legacy = (height: unknown, fallback: TrayMode) => ({
     ...fallback,
     height,
@@ -175,8 +218,23 @@ export function sanitizeSettings(value: unknown): Settings {
     previewHeight: PREVIEW_HEIGHTS.includes(stored.previewHeight as number)
       ? (stored.previewHeight as number)
       : d.previewHeight,
+    previewLastOnly:
+      typeof stored.previewLastOnly === "boolean"
+        ? stored.previewLastOnly
+        : d.previewLastOnly,
+    hiddenPreviews: Array.isArray(stored.hiddenPreviews)
+      ? stored.hiddenPreviews
+          .filter((id): id is string => typeof id === "string")
+          .slice(0, MAX_HIDDEN_PREVIEWS)
+      : d.hiddenPreviews,
     sheetOpen:
       typeof stored.sheetOpen === "boolean" ? stored.sheetOpen : d.sheetOpen,
+    tenSymbol: TEN_SYMBOLS.includes(stored.tenSymbol as string)
+      ? (stored.tenSymbol as string)
+      : d.tenSymbol,
+    oneSymbol: ONE_SYMBOLS.includes(stored.oneSymbol as string)
+      ? (stored.oneSymbol as string)
+      : d.oneSymbol,
   };
 }
 
@@ -192,7 +250,10 @@ function load(): Settings {
 
 function save(settings: Settings) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...settings, version: VERSION })
+    );
   } catch {
     // Storage can be unavailable, the settings just won't be remembered
   }
@@ -209,7 +270,11 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>()((set, get) => ({
   settings: load(),
   changeSettings(update) {
-    const settings = sanitizeSettings({ ...get().settings, ...update });
+    const settings = sanitizeSettings({
+      ...get().settings,
+      ...update,
+      version: VERSION,
+    });
     save(settings);
     set({ settings });
   },
@@ -247,5 +312,36 @@ export function getTrayMode(settings: Settings): TrayMode {
 
 /** Width in pixels of a tray of a given height */
 export function getTrayPixelWidth(height: number, width: number) {
-  return Math.round((height / 2) * width);
+  return Math.round(height * width);
+}
+
+/** A tray that is wider than it is high lies on its side */
+export function isTrayLandscape(width: number) {
+  return width > 1;
+}
+
+/**
+ * The width of the 3D model of the tray for a width from the settings.
+ * The model is always upright and its width is relative to the tray of the
+ * original roller: 1 is the original tray, 2 is a square. This is the width
+ * that goes into a roll (`DiceRoll.tray`) and that the physics use.
+ * A tray lying on its side is the same model looked at with a turned camera.
+ */
+export function getTrayModelWidth(width: number) {
+  return 2 * Math.min(width, 1 / width);
+}
+
+/** The width of the model of a tray when nothing else is known, for example of a player who hasn't rolled yet */
+export const DEFAULT_TRAY_MODEL_WIDTH = getTrayModelWidth(DEFAULT_TRAY_WIDTH);
+
+/** Width in pixels of an upright tray of a given height by the width of its model */
+export function getModelPixelWidth(height: number, modelWidth: number) {
+  return Math.round((height / 2) * modelWidth);
+}
+
+/** How the player wants tens and ones to be written */
+export function useSymbols(): Symbols {
+  const ten = useSettingsStore((state) => state.settings.tenSymbol);
+  const one = useSettingsStore((state) => state.settings.oneSymbol);
+  return useMemo(() => ({ ten, one }), [ten, one]);
 }

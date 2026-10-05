@@ -214,13 +214,47 @@
   color: #000;
 }
 
-.sheet-dice {
+/* The button that adds the dice of a trait to the pool: a die icon and the name of the trait */
+.sheet-roll {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+}
+
+.sheet-roll > svg {
   flex-shrink: 0;
+  font-size: 1.15em;
   color: #444;
 }
 
-.sheet-dice:hover:not(:disabled) {
+.sheet-roll > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet-roll:hover,
+.sheet-roll:hover > svg {
   color: #b00;
+}
+
+/* Nothing to add: the trait has no dots */
+.sheet-roll.empty {
+  cursor: default;
+}
+
+.sheet-roll.empty > svg,
+.sheet-roll.empty:hover > svg {
+  color: #bbb;
+}
+
+.sheet-roll.empty:hover {
+  color: inherit;
 }
 
 .sheet-dots {

@@ -21,10 +21,16 @@ export function PopoverTrays() {
   useEffect(() => OBR.party.onChange(setPlayers), []);
 
   const height = useSettingsStore((state) => state.settings.previewHeight);
+  const lastOnly = useSettingsStore((state) => state.settings.previewLastOnly);
+  const hiddenPlayers = useSettingsStore(
+    (state) => state.settings.hiddenPreviews
+  );
   const enabled = height > 0;
 
   /** Widths in pixels of the previews that are shown by the connection id of their player */
   const [widths, setWidths] = useState<Record<string, number>>({});
+  /** Connection id of the player who started rolling last */
+  const [lastRoller, setLastRoller] = useState<string | null>(null);
 
   function handleTrayToggle(connectionId: string, width: number) {
     setWidths((widths) => {
@@ -49,6 +55,15 @@ export function PopoverTrays() {
       channel.close();
     }
   }
+
+  const shownPlayers = players.filter(
+    (player) => !hiddenPlayers.includes(player.id)
+  );
+  // Without a roll to go by the first player with something to show gets the only preview
+  const onlyPlayer =
+    shownPlayers.find((player) => player.connectionId === lastRoller) ||
+    shownPlayers.find((player) => widths[player.connectionId]) ||
+    shownPlayers[0];
 
   // Fit the window to the previews, an empty window is hidden
   const shownWidths = enabled ? Object.values(widths) : [];
@@ -86,13 +101,15 @@ export function PopoverTrays() {
         bottom: PREVIEW_MARGIN,
       }}
     >
-      {players.map((player) => (
+      {shownPlayers.map((player) => (
         <PopoverTray
           key={player.connectionId}
           player={player}
           height={height}
+          suppressed={lastOnly && player !== onlyPlayer}
           onToggle={handleTrayToggle}
           onOpen={handleTrayOpen}
+          onRollStart={setLastRoller}
         />
       ))}
     </Stack>

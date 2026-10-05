@@ -9,6 +9,7 @@ import { useTheme } from "@mui/material/styles";
 
 import { usePlayerDice } from "./usePlayerDice";
 import { formatOutcome } from "../v20/roll";
+import { useSymbols } from "../settings/store";
 
 export function PlayerAvatar({
   player,
@@ -18,13 +19,14 @@ export function PlayerAvatar({
   onSelect: () => void;
 }) {
   const { outcome } = usePlayerDice(player);
+  const symbols = useSymbols();
 
   const theme = useTheme();
 
   return (
     <Stack alignItems="center" my={0.5}>
       <Badge
-        badgeContent={outcome ? formatOutcome(outcome) : null}
+        badgeContent={outcome ? formatOutcome(outcome, symbols) : null}
         showZero
         overlap="circular"
         anchorOrigin={{

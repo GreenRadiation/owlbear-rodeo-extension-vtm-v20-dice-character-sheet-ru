@@ -7,8 +7,15 @@ vi.stubGlobal("localStorage", {
 });
 vi.stubGlobal("window", { addEventListener: () => {} });
 
-const { defaultSettings, getTrayMode, getTrayPixelWidth, sanitizeSettings } =
-  await import("./store");
+const {
+  defaultSettings,
+  getModelPixelWidth,
+  getTrayMode,
+  getTrayModelWidth,
+  getTrayPixelWidth,
+  isTrayLandscape,
+  sanitizeSettings,
+} = await import("./store");
 
 describe("settings", () => {
   it("falls back to the defaults", () => {
@@ -21,6 +28,7 @@ describe("settings", () => {
 
   it("keeps valid values and clamps the rest", () => {
     const settings = sanitizeSettings({
+      version: 2,
       small: {
         height: 400,
         width: 1,
@@ -39,7 +47,11 @@ describe("settings", () => {
       },
       trayLarge: true,
       previewHeight: 240,
+      previewLastOnly: true,
+      hiddenPreviews: ["a", 7, "b"],
       sheetOpen: true,
+      tenSymbol: "0",
+      oneSymbol: "nonsense",
     });
     expect(settings).toEqual({
       small: {
@@ -60,7 +72,11 @@ describe("settings", () => {
       },
       trayLarge: true,
       previewHeight: 240,
+      previewLastOnly: true,
+      hiddenPreviews: ["a", "b"],
       sheetOpen: true,
+      tenSymbol: "0",
+      oneSymbol: defaultSettings.oneSymbol,
     });
   });
 
@@ -68,6 +84,19 @@ describe("settings", () => {
     const settings = sanitizeSettings({ small: { height: 400 } });
     expect(settings.small).toEqual({ ...defaultSettings.small, height: 400 });
     expect(settings.large).toEqual(defaultSettings.large);
+  });
+
+  it("converts the width of the tray from the settings of the previous version", () => {
+    // The width used to be relative to the original tray: 2 was a square
+    const old = sanitizeSettings({
+      small: { height: 400, width: 1.2 },
+      large: { height: 900, width: 2 },
+    });
+    expect(old.small.width).toBeCloseTo(0.6);
+    expect(old.large.width).toBe(1);
+    // Settings of the current version are left alone
+    const current = sanitizeSettings({ version: 2, small: { width: 1.2 } });
+    expect(current.small.width).toBe(1.2);
   });
 
   it("reads the settings of the first version", () => {
@@ -109,9 +138,24 @@ describe("settings", () => {
     );
   });
 
-  it("makes the tray half as wide as it is high times its width", () => {
-    expect(getTrayPixelWidth(700, 1)).toBe(350);
-    expect(getTrayPixelWidth(700, 1.2)).toBe(420);
-    expect(getTrayPixelWidth(700, 2)).toBe(700);
+  it("sizes the tray by its width relative to its height", () => {
+    expect(getTrayPixelWidth(700, 0.5)).toBe(350);
+    expect(getTrayPixelWidth(700, 1)).toBe(700);
+    expect(getTrayPixelWidth(700, 1.5)).toBe(1050);
+  });
+
+  it("lays a tray wider than a square on its side", () => {
+    expect(isTrayLandscape(0.6)).toBe(false);
+    expect(isTrayLandscape(1)).toBe(false);
+    expect(isTrayLandscape(1.5)).toBe(true);
+    // The model is the original tray at 1 and a square at 2
+    expect(getTrayModelWidth(0.5)).toBe(1);
+    expect(getTrayModelWidth(0.6)).toBeCloseTo(1.2);
+    expect(getTrayModelWidth(1)).toBe(2);
+    // On its side a tray twice as wide as high is the original tray again
+    expect(getTrayModelWidth(2)).toBe(1);
+    // Previews show the model upright
+    expect(getModelPixelWidth(300, 1)).toBe(150);
+    expect(getModelPixelWidth(300, 2)).toBe(300);
   });
 });

@@ -58,20 +58,40 @@ export function sortValues(values: number[]): number[] {
   return [...values].sort((a, b) => b - a);
 }
 
-export const TEN_SYMBOL = "☥";
-export const ONE_SYMBOL = "☠";
+/** How the two special values of a die are written */
+export interface Symbols {
+  ten: string;
+  /** Also stands for a botch */
+  one: string;
+}
 
-/** A ten is shown as an ankh and a one as a skull */
-export function formatValue(value: number): string {
+/**
+ * The choices for the symbols, the first ones are the default.
+ * U+FE0E asks for the plain text shape of a character that also has an emoji:
+ * the emoji shapes are wider and colored.
+ */
+export const TEN_SYMBOLS = ["☥", "✦", "★", "✪", "0", "10"];
+export const ONE_SYMBOLS = ["☠\uFE0E", "💀", "✝\uFE0E", "†", "✖\uFE0E", "1"];
+
+/** A ten is an ankh and a one is a skull unless the player picks something else */
+export const DEFAULT_SYMBOLS: Symbols = {
+  ten: TEN_SYMBOLS[0],
+  one: ONE_SYMBOLS[0],
+};
+
+export function formatValue(value: number, symbols = DEFAULT_SYMBOLS): string {
   if (value === 10) {
-    return TEN_SYMBOL;
+    return symbols.ten;
   } else if (value === 1) {
-    return ONE_SYMBOL;
+    return symbols.one;
   } else {
     return `${value}`;
   }
 }
 
-export function formatOutcome(outcome: RollOutcome): string {
-  return outcome.botch ? ONE_SYMBOL : `${outcome.successes}`;
+export function formatOutcome(
+  outcome: RollOutcome,
+  symbols = DEFAULT_SYMBOLS
+): string {
+  return outcome.botch ? symbols.one : `${outcome.successes}`;
 }

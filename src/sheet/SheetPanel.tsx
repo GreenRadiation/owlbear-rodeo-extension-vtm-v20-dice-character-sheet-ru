@@ -5,6 +5,7 @@ import LockedIcon from "@mui/icons-material/LockRounded";
 import UnlockedIcon from "@mui/icons-material/LockOpenRounded";
 
 import { PluginGate } from "../plugin/PluginGate";
+import { useFocusStore } from "../plugin/focusStore";
 import { getPluginId } from "../plugin/getPluginId";
 import { useRoomMetadata } from "../plugin/roomStorage";
 import { decodeSheet } from "./codec";
@@ -125,8 +126,10 @@ function RoomSheets() {
   }, []);
 
   const [selectedId, setSelectedId] = useState(ownId);
+  // While the GM looks at the tray of a player they get the sheet of that player
+  const focusedId = useFocusStore((state) => state.playerId);
   // Only the GM can look at the sheets of others
-  const playerId = role === "GM" ? selectedId : ownId;
+  const playerId = role === "GM" ? focusedId || selectedId : ownId;
 
   /** Everyone the GM can pick: the players in the room and the sheets of players who are away */
   const options = useMemo(() => {
@@ -158,6 +161,7 @@ function RoomSheets() {
           <select
             aria-label="Чей лист показать"
             value={playerId}
+            disabled={Boolean(focusedId)}
             onChange={(event) => setSelectedId(event.target.value)}
           >
             {options.map((option) => (
