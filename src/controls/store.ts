@@ -5,6 +5,8 @@ import { DiceSet } from "../types/DiceSet";
 import { Die } from "../types/Die";
 import { generateDiceId } from "../helpers/generateDiceId";
 import { getPluginId } from "../plugin/getPluginId";
+import { DiceLook, sanitizeLook } from "../dice/look";
+import { ICON_IDS } from "../materials/custom/icons";
 
 /** Who sees a roll: everyone, only the GM or no one but the player who rolls */
 export type Visibility = "ALL" | "GM" | "NONE";
@@ -14,15 +16,19 @@ const VISIBILITIES: Visibility[] = ["ALL", "GM", "NONE"];
 export const MAX_POOL = 16;
 
 const DICE_SET_STORAGE_KEY = getPluginId("dice-set");
+const DICE_LOOK_STORAGE_KEY = getPluginId("dice-look");
 
 interface DiceControlsState {
   diceSet: DiceSet;
+  /** The look of the custom dice of the player, used when the set of custom dice is picked */
+  look: DiceLook;
   /** How many dice will be rolled */
   pool: number;
   /** Who sees the next roll */
   visibility: Visibility;
   diceRollPressTime: number | null;
   changeDiceSet: (diceSet: DiceSet) => void;
+  changeLook: (update: Partial<DiceLook>) => void;
   resetPool: () => void;
   /** Add dice to the pool, a negative count removes them */
   addToPool: (count: number) => void;
@@ -49,9 +55,30 @@ function saveDiceSet(diceSet: DiceSet) {
   }
 }
 
+/** Restore the custom dice the player put together last time */
+function loadLook(): DiceLook {
+  try {
+    return sanitizeLook(
+      JSON.parse(localStorage.getItem(DICE_LOOK_STORAGE_KEY) || "{}"),
+      ICON_IDS
+    );
+  } catch {
+    return sanitizeLook(undefined, ICON_IDS);
+  }
+}
+
+function saveLook(look: DiceLook) {
+  try {
+    localStorage.setItem(DICE_LOOK_STORAGE_KEY, JSON.stringify(look));
+  } catch {
+    // Storage can be unavailable, the look just won't be remembered
+  }
+}
+
 export const useDiceControlsStore = create<DiceControlsState>()(
-  immer((set) => ({
+  immer((set, get) => ({
     diceSet: loadDiceSet(),
+    look: loadLook(),
     pool: 0,
     visibility: "ALL",
     diceRollPressTime: null,
@@ -59,6 +86,13 @@ export const useDiceControlsStore = create<DiceControlsState>()(
       saveDiceSet(diceSet);
       set((state) => {
         state.diceSet = diceSet;
+      });
+    },
+    changeLook(update) {
+      const look = sanitizeLook({ ...get().look, ...update }, ICON_IDS);
+      saveLook(look);
+      set((state) => {
+        state.look = look;
       });
     },
     resetPool() {
@@ -87,6 +121,11 @@ export const useDiceControlsStore = create<DiceControlsState>()(
     },
   }))
 );
+
+/** If the dice of a set are the custom dice of the player */
+export function isCustomDiceSet(diceSet: DiceSet) {
+  return diceSet.dice[0].style === "CUSTOM";
+}
 
 /** Generate new dice for a pool using the die of the given set */
 export function getDiceToRoll(pool: number, diceSet: DiceSet): Die[] {

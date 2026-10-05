@@ -19,4 +19,10 @@ export interface DiceRoll extends Dice {
    * roller (1 if undefined). Part of the roll for the same reason as the scale.
    */
   tray?: number;
+  /**
+   * The look of the dice of the "CUSTOM" style, a `DiceLook`.
+   * Part of the roll for everyone to see the dice of the player the same.
+   * Comes from another player: not to be trusted, see `sanitizeLook`.
+   */
+  look?: unknown;
 }

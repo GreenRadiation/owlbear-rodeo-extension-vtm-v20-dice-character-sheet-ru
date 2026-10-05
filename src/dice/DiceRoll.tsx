@@ -11,6 +11,7 @@ import { PhysicsDice } from "./PhysicsDice";
 import { useDebugStore } from "../debug/store";
 import { DiceScaleContext } from "./scale";
 import { PHYSICS_TIME_STEP } from "./timing";
+import { DiceLookContext } from "./lookContext";
 
 /** Without an animation frame for this long the window is taken to be not visible, in milliseconds */
 const FRAME_TIMEOUT = 250;
@@ -200,14 +201,16 @@ ScaledDiceRoll.defaultProps = {
 
 type ScaledDiceRollProps = Parameters<typeof ScaledDiceRoll>[0];
 
-/** A roll of dice, everything inside uses the size of the dice the roll was made with */
+/** A roll of dice, everything inside uses the size and the look of the dice the roll was made with */
 export function DiceRoll(
   props: Omit<ScaledDiceRollProps, "Dice"> &
     Partial<Pick<ScaledDiceRollProps, "Dice">>
 ) {
   return (
     <DiceScaleContext.Provider value={props.roll.scale || 1}>
-      <ScaledDiceRoll {...props} />
+      <DiceLookContext.Provider value={props.roll.look}>
+        <ScaledDiceRoll {...props} />
+      </DiceLookContext.Provider>
     </DiceScaleContext.Provider>
   );
 }

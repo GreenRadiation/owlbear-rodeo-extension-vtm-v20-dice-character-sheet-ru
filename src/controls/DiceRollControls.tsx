@@ -19,7 +19,7 @@ import { RerollDiceIcon } from "../icons/RerollDiceIcon";
 import { GradientOverlay } from "./GradientOverlay";
 import { useDiceRollStore } from "../dice/store";
 import { RollResult, WIDE_RESULT_WIDTH } from "./RollResult";
-import { getDiceToRoll, useDiceControlsStore } from "./store";
+import { getDiceToRoll, isCustomDiceSet, useDiceControlsStore } from "./store";
 import { faceToValue } from "../v20/roll";
 import {
   getTrayMode,
@@ -90,6 +90,9 @@ function DicePickedControls() {
           gm: visibility === "GM",
           scale: mode.diceScale,
           tray: getTrayModelWidth(mode.width),
+          look: isCustomDiceSet(diceSet)
+            ? useDiceControlsStore.getState().look
+            : undefined,
         },
         speedMultiplier
       );

@@ -1,5 +1,5 @@
 import { DiceSet } from "../types/DiceSet";
-import { DiceStyle } from "../types/DiceStyle";
+import { DiceStyle, ImageDiceStyle } from "../types/DiceStyle";
 
 import * as galaxyPreviews from "../previews/galaxy";
 import * as gemstonePreviews from "../previews/gemstone";
@@ -10,7 +10,7 @@ import * as sunrisePreviews from "../previews/sunrise";
 import * as sunsetPreviews from "../previews/sunset";
 import * as walnutPreviews from "../previews/walnut";
 
-const previews: Record<DiceStyle, string> = {
+const previews: Record<ImageDiceStyle, string> = {
   GALAXY: galaxyPreviews.D10,
   GEMSTONE: gemstonePreviews.D10,
   GLASS: glassPreviews.D10,
@@ -28,7 +28,8 @@ function createSet(style: DiceStyle): DiceSet {
     id,
     name: `${style.toLowerCase()} dice`,
     dice: [{ id: `${id}_D10`, type: "D10", style }],
-    previewImage: previews[style],
+    // Custom dice have no image, they are drawn from their look
+    previewImage: style === "CUSTOM" ? "" : previews[style],
   };
 }
 
@@ -42,4 +43,5 @@ export const diceSets: DiceSet[] = [
   createSet("NEBULA"),
   createSet("SUNRISE"),
   createSet("WALNUT"),
+  createSet("CUSTOM"),
 ];

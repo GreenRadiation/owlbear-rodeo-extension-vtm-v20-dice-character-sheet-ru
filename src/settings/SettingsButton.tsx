@@ -20,7 +20,9 @@ import ExpandIcon from "@mui/icons-material/ExpandMoreRounded";
 import CollapseIcon from "@mui/icons-material/ExpandLessRounded";
 
 import { SlideTransition } from "../controls/SlideTransition";
-import { useDiceControlsStore } from "../controls/store";
+import { isCustomDiceSet, useDiceControlsStore } from "../controls/store";
+import { CustomDicePreview } from "../previews/CustomDicePreview";
+import { DiceLookSettings } from "./DiceLookSettings";
 import { diceSets } from "../sets/diceSets";
 import { PluginGate } from "../plugin/PluginGate";
 import { RoomDataSettings } from "../plugin/RoomDataSettings";
@@ -277,6 +279,7 @@ function SymbolSetting({
 function DiceStyleSetting() {
   const diceSet = useDiceControlsStore((state) => state.diceSet);
   const changeDiceSet = useDiceControlsStore((state) => state.changeDiceSet);
+  const look = useDiceControlsStore((state) => state.look);
 
   return (
     <Stack gap={0.5}>
@@ -296,10 +299,19 @@ function DiceStyleSetting() {
                   : undefined,
             }}
           >
-            <img src={set.previewImage} width={36} height={36} alt="" />
+            {isCustomDiceSet(set) ? (
+              <CustomDicePreview look={look} size={36} />
+            ) : (
+              <img src={set.previewImage} width={36} height={36} alt="" />
+            )}
           </IconButton>
         ))}
       </Stack>
+      <Typography variant="caption" color="text.secondary">
+        Последний куб в ряду — свой: цвета, узор, значки и поверхность
+        настраиваются ниже. Другие игроки видят твои кубы такими же.
+      </Typography>
+      {isCustomDiceSet(diceSet) && <DiceLookSettings />}
     </Stack>
   );
 }

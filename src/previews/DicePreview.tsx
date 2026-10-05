@@ -1,6 +1,8 @@
 import { styled } from "@mui/material/styles";
 
-import { DiceStyle } from "../types/DiceStyle";
+import { DiceStyle, ImageDiceStyle } from "../types/DiceStyle";
+import { useDiceControlsStore } from "../controls/store";
+import { CustomDicePreview } from "./CustomDicePreview";
 import { DiceType } from "../types/DiceType";
 
 import * as galaxyPreviews from "./galaxy";
@@ -12,7 +14,7 @@ import * as sunrisePreviews from "./sunrise";
 import * as sunsetPreviews from "./sunset";
 import * as walnutPreviews from "./walnut";
 
-const previews: Record<DiceStyle, Record<DiceType, string>> = {
+const previews: Record<ImageDiceStyle, Record<DiceType, string>> = {
   GALAXY: galaxyPreviews,
   GEMSTONE: gemstonePreviews,
   GLASS: glassPreviews,
@@ -40,7 +42,14 @@ type DiePreviewProps = {
   size?: "small" | "medium" | "large";
 };
 
+const SIZES = { small: 28, medium: 34, large: 38 };
+
 export function DicePreview({ diceType, diceStyle, size }: DiePreviewProps) {
+  // The custom dice shown in the interface are always the ones of this player
+  const look = useDiceControlsStore((state) => state.look);
+  if (diceStyle === "CUSTOM") {
+    return <CustomDicePreview look={look} size={SIZES[size || "large"]} />;
+  }
   return (
     <PreviewImage
       src={previews[diceStyle][diceType]}

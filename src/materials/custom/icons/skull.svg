@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
+  <defs>
+    <mask id="holes">
+      <rect width="100" height="100" fill="#fff"/>
+      <ellipse cx="34" cy="44" rx="11" ry="12" fill="#000"/>
+      <ellipse cx="66" cy="44" rx="11" ry="12" fill="#000"/>
+      <path d="M50 55l7 13h-14z" fill="#000"/>
+      <rect x="40" y="78" width="4" height="16" fill="#000"/>
+      <rect x="48" y="78" width="4" height="16" fill="#000"/>
+      <rect x="56" y="78" width="4" height="16" fill="#000"/>
+    </mask>
+  </defs>
+  <g mask="url(#holes)">
+    <ellipse cx="50" cy="40" rx="38" ry="35"/>
+    <rect x="29" y="58" width="42" height="36" rx="7"/>
+  </g>
+</svg>

@@ -13,6 +13,7 @@ import { getNextBuffer } from "../audio/getAudioBuffer";
 import { random } from "../helpers/random";
 import { WeightClass } from "../types/WeightClass";
 import { DiceScaleContext } from "./scale";
+import { DiceLookContext } from "./lookContext";
 import {
   getTrayMode,
   getTrayModelWidth,
@@ -22,6 +23,7 @@ import {
 export function PreviewDiceRoll() {
   const pool = useDiceControlsStore((state) => state.pool);
   const diceSet = useDiceControlsStore((state) => state.diceSet);
+  const look = useDiceControlsStore((state) => state.look);
 
   const dice = useMemo(() => getDiceToRoll(pool, diceSet), [pool, diceSet]);
 
@@ -93,22 +95,24 @@ export function PreviewDiceRoll() {
 
   return (
     <DiceScaleContext.Provider value={diceScale}>
-      <group ref={groupRef} position={[0, -0.8, 0]}>
-      {dice.map((die, index) => {
-        const dieThrow = diceThrower.getDiceThrow(index);
-        const p = dieThrow.position;
-        const r = dieThrow.rotation;
-        return (
-          <AnimatedDice
-            key={index}
-            die={die}
-            p={p}
-            r={r}
-            rollPressTime={rollPressTime}
-          />
-        );
-      })}
-      </group>
+      <DiceLookContext.Provider value={look}>
+        <group ref={groupRef} position={[0, -0.8, 0]}>
+          {dice.map((die, index) => {
+            const dieThrow = diceThrower.getDiceThrow(index);
+            const p = dieThrow.position;
+            const r = dieThrow.rotation;
+            return (
+              <AnimatedDice
+                key={index}
+                die={die}
+                p={p}
+                r={r}
+                rollPressTime={rollPressTime}
+              />
+            );
+          })}
+        </group>
+      </DiceLookContext.Provider>
     </DiceScaleContext.Provider>
   );
 }
