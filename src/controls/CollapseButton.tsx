@@ -31,6 +31,7 @@ export function CollapseButton() {
   return (
     <Tooltip title="Свернуть всё" placement="right" disableInteractive>
       <IconButton
+        size="small"
         aria-label="Свернуть всё"
         onClick={() => changeSettings({ collapsed: true })}
       >

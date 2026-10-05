@@ -35,6 +35,7 @@ export function DiceHidden() {
   return (
     <Tooltip title={TITLES[visibility]} placement="right" disableInteractive>
       <IconButton
+        size="small"
         aria-label={TITLES[visibility]}
         onClick={() => {
           cycleVisibility(gm);

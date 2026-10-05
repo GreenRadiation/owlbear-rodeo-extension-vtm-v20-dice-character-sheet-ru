@@ -62,6 +62,8 @@ export interface Settings {
   collapsed: boolean;
   /** Ids of the sections of the character sheet that are folded */
   foldedSections: string[];
+  /** Height in pixels the player dragged the field of the notes to, 0 for the default height */
+  notesHeight: number;
   /** How a ten and a one are written, see TEN_SYMBOLS and ONE_SYMBOLS */
   tenSymbol: string;
   oneSymbol: string;
@@ -91,6 +93,7 @@ export const DICE_SCALE_STEP = 0.05;
 
 /** The most players that can be kept out of the previews */
 const MAX_HIDDEN_PREVIEWS = 30;
+const MAX_NOTES_HEIGHT = 5000;
 /** More than the sheet has sections */
 const MAX_FOLDED_SECTIONS = 20;
 
@@ -123,6 +126,7 @@ export const defaultSettings: Settings = {
   sheetOpen: false,
   collapsed: false,
   foldedSections: [],
+  notesHeight: 0,
   tenSymbol: DEFAULT_SYMBOLS.ten,
   oneSymbol: DEFAULT_SYMBOLS.one,
 };
@@ -248,6 +252,9 @@ export function sanitizeSettings(value: unknown): Settings {
           .filter((id): id is string => typeof id === "string")
           .slice(0, MAX_FOLDED_SECTIONS)
       : d.foldedSections,
+    notesHeight: Math.round(
+      clamp(stored.notesHeight, 0, MAX_NOTES_HEIGHT, d.notesHeight)
+    ),
     tenSymbol: TEN_SYMBOLS.includes(stored.tenSymbol as string)
       ? (stored.tenSymbol as string)
       : d.tenSymbol,

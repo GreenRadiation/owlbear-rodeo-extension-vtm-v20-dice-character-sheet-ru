@@ -19,6 +19,8 @@ import {
   useSettingsStore,
 } from "../settings/store";
 import { TrayCamera } from "./TrayCamera";
+import { PluginGate } from "../plugin/PluginGate";
+import { OwnRollHistoryButton } from "../plugin/RollHistoryButton";
 
 /** Dice tray that controls the dice roll store */
 export function InteractiveTray() {
@@ -74,6 +76,15 @@ export function InteractiveTray() {
         </Canvas>
       </TraySuspense>
       <DiceRollControls />
+      {/* After the controls of the roll to stay clickable over them */}
+      <PluginGate>
+        <Box
+          component="div"
+          sx={{ position: "absolute", bottom: 12, left: 12, zIndex: 1 }}
+        >
+          <OwnRollHistoryButton />
+        </Box>
+      </PluginGate>
     </Box>
   );
 }

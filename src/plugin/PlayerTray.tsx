@@ -27,7 +27,12 @@ import { TrayCamera } from "../tray/TrayCamera";
 import { useDebugStore } from "../debug/store";
 import { TraySuspense } from "../tray/TraySuspense";
 import { RollHistoryButton } from "./RollHistoryButton";
-import { DEFAULT_TRAY_MODEL_WIDTH, useSettingsStore } from "../settings/store";
+import {
+  DEFAULT_TRAY_MODEL_WIDTH,
+  getTrayMode,
+  isTrayLandscape,
+  useSettingsStore,
+} from "../settings/store";
 
 /** The tray of another player opened over the tray of this player */
 export function PlayerTray({
@@ -39,6 +44,11 @@ export function PlayerTray({
   // The tray of the player is as wide as it was for their roll
   const { diceRoll } = usePlayerDice(player);
   const trayWidth = diceRoll?.tray || DEFAULT_TRAY_MODEL_WIDTH;
+  // The room for it has the shape of the tray of this player: when that one
+  // lies on its side this one is turned too to be as large as it can
+  const landscape = useSettingsStore((state) =>
+    isTrayLandscape(getTrayMode(state.settings).width)
+  );
 
   // Measure the tray to lay out the result of the roll
   const trayRef = useRef<HTMLDivElement>(null);
@@ -69,8 +79,14 @@ export function PlayerTray({
         ref={trayRef}
         component="div"
         borderRadius={0.5}
-        width={`min(100%, calc(var(--tray-height, 100vh) / 2 * ${trayWidth}))`}
-        sx={{ aspectRatio: `${trayWidth} / 2` }}
+        width={
+          landscape
+            ? `min(100%, calc(var(--tray-height, 100vh) * 2 / ${trayWidth}))`
+            : `min(100%, calc(var(--tray-height, 100vh) / 2 * ${trayWidth}))`
+        }
+        sx={{
+          aspectRatio: landscape ? `2 / ${trayWidth}` : `${trayWidth} / 2`,
+        }}
         overflow="hidden"
         position="relative"
       >
@@ -89,7 +105,7 @@ export function PlayerTray({
               />
               <Tray widthScale={trayWidth} />
               <PlayerDiceRoll player={player} />
-              <TrayCamera trayWidth={trayWidth} />
+              <TrayCamera trayWidth={trayWidth} landscape={landscape} />
               {allowOrbit && <OrbitControls />}
             </AudioListenerProvider>
           </Canvas>

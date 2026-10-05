@@ -11,7 +11,6 @@ import { DiceRollSync } from "../plugin/DiceRollSync";
 import { PartyTrays } from "../plugin/PartyTrays";
 import { TrayWindowSync } from "../plugin/TrayWindowSync";
 import { RollHistorySync } from "../plugin/RollHistorySync";
-import { OwnRollHistoryButton } from "../plugin/RollHistoryButton";
 import { WindowSizeButton } from "../plugin/WindowSizeButton";
 import { SettingsButton } from "../settings/SettingsButton";
 import { SheetButton } from "../sheet/SheetButton";
@@ -27,15 +26,19 @@ export function Sidebar() {
       }}
     >
       <Stack p={1} gap={1} alignItems="center">
-        <CollapseButton />
-        <Divider flexItem sx={{ mx: 1 }} />
-        <PoolControls />
-        <DiceHidden />
+        {/* Packed tight to leave room for the players below without scrolling */}
+        <Stack
+          alignItems="center"
+          sx={{ "& .MuiIconButton-sizeSmall": { p: "3px" } }}
+        >
+          <CollapseButton />
+          <PoolControls />
+          <DiceHidden />
+        </Stack>
         <Divider flexItem sx={{ mx: 1 }} />
         <SheetButton />
         <SettingsButton />
         <PluginGate>
-          <OwnRollHistoryButton />
           <WindowSizeButton />
           <Divider flexItem sx={{ mx: 1 }} />
           <DiceRollSync />

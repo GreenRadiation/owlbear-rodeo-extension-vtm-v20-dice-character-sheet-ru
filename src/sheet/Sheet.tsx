@@ -200,6 +200,7 @@ function TraitRow({
   const blood = physical ? sheet.bloodDots[traitKey as PhysicalKey] : 0;
   const specialty = sheet.specialties[traitKey] || "";
 
+  // Only in this window: what the GM opens on the sheet of a player doesn't open for the player
   const [specialtyOpen, setSpecialtyOpen] = useState(false);
 
   function handleDotClick(index: number) {
@@ -252,7 +253,9 @@ function TraitRow({
               className={`sheet-icon-button sheet-arrow${
                 specialty ? " has-specialty" : ""
               }`}
-              title="Специализация"
+              title={
+                specialty ? `Специализация: ${specialty}` : "Специализация"
+              }
               aria-label={`${name}: специализация`}
               aria-expanded={specialtyOpen}
               onClick={() => setSpecialtyOpen(!specialtyOpen)}
@@ -270,7 +273,8 @@ function TraitRow({
           onClick={handleDotClick}
         />
       </div>
-      {specialtyOpen ? (
+      {/* A closed speciality isn't shown, the color of the arrow tells that there is one */}
+      {specialtyOpen && (
         <div className="sheet-specialty">
           <TextField
             label={`${name}: специализация`}
@@ -280,8 +284,6 @@ function TraitRow({
             onChange={handleSpecialtyChange}
           />
         </div>
-      ) : (
-        specialty && <div className="sheet-specialty">{specialty}</div>
       )}
     </>
   );

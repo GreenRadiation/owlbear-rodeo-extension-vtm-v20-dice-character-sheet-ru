@@ -55,6 +55,7 @@ export function PoolControls() {
       <Tooltip title="Убрать куб" placement="right" disableInteractive>
         <span>
           <IconButton
+            size="small"
             aria-label="убрать куб"
             onClick={() => handleChange(-1)}
             disabled={pool <= 0}

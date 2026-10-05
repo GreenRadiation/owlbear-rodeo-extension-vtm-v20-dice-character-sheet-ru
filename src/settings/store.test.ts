@@ -52,6 +52,7 @@ describe("settings", () => {
       sheetOpen: true,
       collapsed: true,
       foldedSections: ["status", 5],
+      notesHeight: 99999,
       tenSymbol: "0",
       oneSymbol: "nonsense",
     });
@@ -79,6 +80,7 @@ describe("settings", () => {
       sheetOpen: true,
       collapsed: true,
       foldedSections: ["status"],
+      notesHeight: 5000,
       tenSymbol: "0",
       oneSymbol: defaultSettings.oneSymbol,
     });

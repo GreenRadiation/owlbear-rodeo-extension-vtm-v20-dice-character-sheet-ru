@@ -400,10 +400,12 @@
   text-decoration: underline dotted;
 }
 
+/* The height is the default one, the player can drag it and it is remembered */
 .sheet-notes textarea {
   display: block;
   width: 100%;
-  min-height: 9em;
+  height: 36em;
+  min-height: 4em;
   padding: 0.3em;
   border: 1px solid #999;
   border-radius: 0;

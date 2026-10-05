@@ -19,6 +19,7 @@ import {
 } from "./model";
 import { Section, Sheet } from "./Sheet";
 import { PROFILE_SECTION, useSection } from "./useSection";
+import { useSettingsStore } from "../settings/store";
 import { SHEET_PREFIX, useSheet } from "./useSheet";
 import { exportVtmcl, importVtmcl } from "./vtmcl";
 
@@ -129,6 +130,7 @@ function SheetName({
 /** A sheet that isn't stored anywhere, to work on the sheet outside of Owlbear Rodeo */
 function LocalSheet() {
   const [sheet, setSheet] = useState<SheetData>(createSheet);
+  const [notes, setNotes] = useState("");
 
   return (
     <>
@@ -144,6 +146,7 @@ function LocalSheet() {
         </button>
       </div>
       <Sheet sheet={sheet} update={(change) => setSheet(change)} />
+      <Notes notes={notes} onChange={setNotes} name={sheet.name} />
     </>
   );
 }
@@ -357,6 +360,28 @@ function Notes({
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // The height the player dragged the field to is kept with the settings
+  const height = useSettingsStore((state) => state.settings.notesHeight);
+  const changeSettings = useSettingsStore((state) => state.changeSettings);
+
+  /**
+   * Dragging the corner of the field is a press on the field that ends
+   * with another height. The release can happen outside of the field.
+   */
+  function handlePointerDown(event: React.PointerEvent<HTMLTextAreaElement>) {
+    const element = event.currentTarget;
+    const pressHeight = element.offsetHeight;
+    const handleRelease = () => {
+      window.removeEventListener("pointerup", handleRelease);
+      window.removeEventListener("mouseup", handleRelease);
+      if (element.offsetHeight !== pressHeight) {
+        changeSettings({ notesHeight: element.offsetHeight });
+      }
+    };
+    window.addEventListener("pointerup", handleRelease);
+    window.addEventListener("mouseup", handleRelease);
+  }
+
   async function handleLoad(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -373,7 +398,9 @@ function Notes({
           placeholder="Инвентарь, имена, зацепки. Заметки видишь только ты, они хранятся в этом браузере."
           value={notes}
           maxLength={MAX_NOTES_LENGTH}
+          style={height > 0 ? { height } : undefined}
           onChange={(event) => onChange(event.target.value)}
+          onPointerDown={handlePointerDown}
         />
         <div className="sheet-notes-buttons">
           <button

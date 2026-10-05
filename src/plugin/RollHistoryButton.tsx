@@ -17,10 +17,13 @@ import { useSymbols } from "../settings/store";
 
 /** The history of the player using the extension, has to be rendered when the plugin is ready */
 export function OwnRollHistoryButton() {
-  return <RollHistoryButton playerId={OBR.player.id} />;
+  return <RollHistoryButton playerId={OBR.player.id} color="white" />;
 }
 
-/** Button that shows the last rolls of a player, newest first */
+/**
+ * Button that shows the last rolls of a player, newest first.
+ * Sits in the bottom left corner of a tray so the list opens upwards.
+ */
 export function RollHistoryButton({
   playerId,
   color,
@@ -53,8 +56,8 @@ export function RollHistoryButton({
         open={Boolean(anchorEl)}
         anchorEl={anchorEl}
         onClose={() => setAnchorEl(null)}
-        anchorOrigin={{ vertical: "center", horizontal: "right" }}
-        transformOrigin={{ vertical: "center", horizontal: "left" }}
+        anchorOrigin={{ vertical: "top", horizontal: "left" }}
+        transformOrigin={{ vertical: "bottom", horizontal: "left" }}
         marginThreshold={8}
       >
         <Stack px={1.5} py={1} maxHeight="80vh" overflow="auto">
