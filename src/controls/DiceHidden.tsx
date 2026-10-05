@@ -7,6 +7,7 @@ import NoneIcon from "@mui/icons-material/VisibilityOffRounded";
 
 import { Visibility, useDiceControlsStore } from "./store";
 import { useDiceRollStore } from "../dice/store";
+import { useRole } from "../plugin/useRole";
 
 const TITLES: Record<Visibility, string> = {
   ALL: "Бросок видят все",
@@ -21,6 +22,8 @@ export function DiceHidden() {
     (state) => state.cycleVisibility
   );
 
+  const gm = useRole() === "GM";
+
   const clearRoll = useDiceRollStore((state) => state.clearRoll);
   const roll = useDiceRollStore((state) => state.roll);
   function clearRollIfNeeded() {
@@ -30,11 +33,11 @@ export function DiceHidden() {
   }
 
   return (
-    <Tooltip title={TITLES[visibility]} placement="top" disableInteractive>
+    <Tooltip title={TITLES[visibility]} placement="right" disableInteractive>
       <IconButton
         aria-label={TITLES[visibility]}
         onClick={() => {
-          cycleVisibility();
+          cycleVisibility(gm);
           clearRollIfNeeded();
         }}
       >

@@ -17,7 +17,8 @@ import {
   getBlood,
   setLocked,
 } from "./model";
-import { Sheet } from "./Sheet";
+import { Section, Sheet } from "./Sheet";
+import { PROFILE_SECTION, useSection } from "./useSection";
 import { SHEET_PREFIX, useSheet } from "./useSheet";
 import { exportVtmcl, importVtmcl } from "./vtmcl";
 
@@ -82,16 +83,58 @@ export function SheetPanel({
   );
 }
 
+/**
+ * The name of the character.
+ * On a locked sheet it is a button that folds the profile below it,
+ * on a sheet that is open for changes it is a text field.
+ */
+function SheetName({
+  sheet,
+  update,
+}: {
+  sheet: SheetData;
+  update: (change: (sheet: SheetData) => SheetData) => void;
+}) {
+  const [folded, toggle] = useSection(PROFILE_SECTION);
+
+  if (sheet.locked) {
+    return (
+      <button
+        type="button"
+        className="sheet-name"
+        aria-expanded={!folded}
+        onClick={toggle}
+      >
+        <span>{sheet.name || "Без имени"}</span>
+        <span className="sheet-fold-arrow">{folded ? "▸" : "▾"}</span>
+      </button>
+    );
+  }
+
+  return (
+    <input
+      type="text"
+      className="sheet-name"
+      aria-label="Имя персонажа"
+      placeholder="Имя персонажа"
+      value={sheet.name}
+      maxLength={MAX_NAME_LENGTH}
+      onChange={(event) =>
+        update((sheet) => ({ ...sheet, name: event.target.value }))
+      }
+    />
+  );
+}
+
 /** A sheet that isn't stored anywhere, to work on the sheet outside of Owlbear Rodeo */
 function LocalSheet() {
   const [sheet, setSheet] = useState<SheetData>(createSheet);
 
   return (
     <>
+      <div className="sheet-hint">Вне Owlbear Rodeo лист не сохраняется.</div>
       <div className="sheet-toolbar">
-        <span className="sheet-hint">
-          Вне Owlbear Rodeo лист не сохраняется.
-        </span>
+        <SheetName sheet={sheet} update={(change) => setSheet(change)} />
         <button
           type="button"
           className="sheet-button"
@@ -173,7 +216,11 @@ function RoomSheets() {
         </div>
       )}
       {/* The key starts the sheet from scratch when another player is picked */}
-      <PlayerSheet key={playerId} playerId={playerId} own={playerId === ownId} />
+      <PlayerSheet
+        key={playerId}
+        playerId={playerId}
+        own={playerId === ownId}
+      />
     </>
   );
 }
@@ -215,18 +262,7 @@ function PlayerSheet({ playerId, own }: { playerId: string; own: boolean }) {
   return (
     <>
       <div className="sheet-toolbar">
-        <input
-          type="text"
-          className="sheet-name"
-          aria-label="Имя персонажа"
-          placeholder={sheet.locked ? undefined : "Имя персонажа"}
-          value={sheet.name}
-          maxLength={MAX_NAME_LENGTH}
-          disabled={sheet.locked}
-          onChange={(event) =>
-            update((sheet) => ({ ...sheet, name: event.target.value }))
-          }
-        />
+        <SheetName sheet={sheet} update={update} />
         <button
           type="button"
           className="sheet-button"
@@ -331,45 +367,46 @@ function Notes({
 
   return (
     <div className="sheet-notes">
-      <div className="sheet-section-title">Заметки</div>
-      <textarea
-        aria-label="Заметки"
-        placeholder="Инвентарь, имена, зацепки. Заметки видишь только ты, они хранятся в этом браузере."
-        value={notes}
-        maxLength={MAX_NOTES_LENGTH}
-        onChange={(event) => onChange(event.target.value)}
-      />
-      <div className="sheet-notes-buttons">
-        <button
-          type="button"
-          className="sheet-button"
-          title="Заменить заметки текстом из файла"
-          onClick={() => fileRef.current?.click()}
-        >
-          Загрузить из TXT
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="text/plain,.txt"
-          hidden
-          onChange={handleLoad}
+      <Section id="notes" title="Заметки">
+        <textarea
+          aria-label="Заметки"
+          placeholder="Инвентарь, имена, зацепки. Заметки видишь только ты, они хранятся в этом браузере."
+          value={notes}
+          maxLength={MAX_NOTES_LENGTH}
+          onChange={(event) => onChange(event.target.value)}
         />
-        <button
-          type="button"
-          className="sheet-button"
-          disabled={!notes}
-          onClick={() =>
-            downloadText(
-              `${toFileName(name, "character")}_notes.txt`,
-              notes,
-              "text/plain"
-            )
-          }
-        >
-          Сохранить в TXT
-        </button>
-      </div>
+        <div className="sheet-notes-buttons">
+          <button
+            type="button"
+            className="sheet-button"
+            title="Заменить заметки текстом из файла"
+            onClick={() => fileRef.current?.click()}
+          >
+            Загрузить из TXT
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="text/plain,.txt"
+            hidden
+            onChange={handleLoad}
+          />
+          <button
+            type="button"
+            className="sheet-button"
+            disabled={!notes}
+            onClick={() =>
+              downloadText(
+                `${toFileName(name, "character")}_notes.txt`,
+                notes,
+                "text/plain"
+              )
+            }
+          >
+            Сохранить в TXT
+          </button>
+        </div>
+      </Section>
     </div>
   );
 }

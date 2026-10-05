@@ -26,8 +26,8 @@ interface DiceControlsState {
   resetPool: () => void;
   /** Add dice to the pool, a negative count removes them */
   addToPool: (count: number) => void;
-  /** Switch to the next kind of visibility */
-  cycleVisibility: () => void;
+  /** Switch to the next kind of visibility, the GM has no use for rolls only the GM sees */
+  cycleVisibility: (gm?: boolean) => void;
   setDiceRollPressTime: (time: number | null) => void;
 }
 
@@ -71,10 +71,13 @@ export const useDiceControlsStore = create<DiceControlsState>()(
         state.pool = Math.min(MAX_POOL, Math.max(0, state.pool + count));
       });
     },
-    cycleVisibility() {
+    cycleVisibility(gm) {
       set((state) => {
-        const index = VISIBILITIES.indexOf(state.visibility);
-        state.visibility = VISIBILITIES[(index + 1) % VISIBILITIES.length];
+        const choices = gm
+          ? VISIBILITIES.filter((visibility) => visibility !== "GM")
+          : VISIBILITIES;
+        const index = choices.indexOf(state.visibility);
+        state.visibility = choices[(index + 1) % choices.length];
       });
     },
     setDiceRollPressTime(time) {

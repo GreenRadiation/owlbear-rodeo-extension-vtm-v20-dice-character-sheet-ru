@@ -39,6 +39,7 @@ import {
   clickDots,
   getBlood,
 } from "./model";
+import { PROFILE_SECTION, useSection } from "./useSection";
 
 type Update = (change: (sheet: SheetData) => SheetData) => void;
 
@@ -214,7 +215,10 @@ function TraitRow({
     } else if (attribute) {
       update((sheet) => ({
         ...sheet,
-        attributes: { ...sheet.attributes, [traitKey]: clickDots(value, index) },
+        attributes: {
+          ...sheet.attributes,
+          [traitKey]: clickDots(value, index),
+        },
       }));
     } else {
       update((sheet) => ({
@@ -458,6 +462,39 @@ function Health({ sheet, update }: { sheet: SheetData; update: Update }) {
   );
 }
 
+/**
+ * A part of the sheet under a title. Clicking the title folds the section
+ * to leave more room for the rest.
+ */
+export function Section({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  const [folded, toggle] = useSection(id);
+
+  return (
+    <>
+      <button
+        type="button"
+        className="sheet-section-title"
+        aria-expanded={!folded}
+        onClick={toggle}
+      >
+        <span>
+          {title}
+          <span className="sheet-fold-arrow">{folded ? "▸" : "▾"}</span>
+        </span>
+      </button>
+      {!folded && children}
+    </>
+  );
+}
+
 function Datalist({ id, names }: { id: string; names: string[] }) {
   return (
     <datalist id={id}>
@@ -476,6 +513,9 @@ function Datalist({ id, names }: { id: string; names: string[] }) {
 export function Sheet({ sheet, update }: { sheet: SheetData; update: Update }) {
   const locked = sheet.locked;
   const blood = getBlood(sheet.generation);
+  // The profile is folded with the name of the character, see SheetPanel.
+  // It can't be while the sheet is open for changes
+  const [profileFolded] = useSection(PROFILE_SECTION);
 
   const set = <K extends keyof SheetData>(key: K, value: SheetData[K]) =>
     update((sheet) => ({ ...sheet, [key]: value }));
@@ -495,245 +535,261 @@ export function Sheet({ sheet, update }: { sheet: SheetData; update: Update }) {
       <Datalist id="sheet-flaws" names={FLAWS} />
       <Datalist id="sheet-paths" names={PATHS} />
 
-      <div className="sheet-profile">
-        <label className="sheet-field">
-          <span>Натура:</span>
-          <TextField
-            label="Натура"
-            value={sheet.nature}
-            list="sheet-archetypes"
-            disabled={locked}
-            onChange={(value) => set("nature", value)}
-          />
-        </label>
-        <label className="sheet-field">
-          <span>Клан:</span>
-          <TextField
-            label="Клан"
-            value={sheet.clan}
-            list="sheet-clans"
-            disabled={locked}
-            onChange={(value) => set("clan", value)}
-          />
-        </label>
-        <label className="sheet-field">
-          <span>Возраст:</span>
-          <TextField
-            label="Возраст"
-            value={sheet.age}
-            disabled={locked}
-            onChange={(value) => set("age", value)}
-          />
-        </label>
-        <label className="sheet-field">
-          <span>Поколение:</span>
-          <select
-            aria-label="Поколение"
-            value={sheet.generation}
-            disabled={locked}
-            onChange={(event) =>
-              update((sheet) => {
-                const generation = Number(event.target.value);
-                return {
-                  ...sheet,
-                  generation,
-                  bloodPool: Math.min(
-                    sheet.bloodPool,
-                    getBlood(generation).pool
-                  ),
-                };
-              })
-            }
-          >
-            {generations.map((generation) => (
-              <option key={generation} value={generation}>
-                {generation}-е
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="sheet-field">
-          <span>Опыт:</span>
-          <TextField
-            label="Опыт"
-            value={sheet.experience}
-            disabled={locked}
-            onChange={(value) => set("experience", value)}
-          />
-        </label>
-      </div>
-
-      <div className="sheet-section-title">Характеристики</div>
-      <div className="sheet-groups">
-        {ATTRIBUTE_GROUPS.map((group) => (
-          <div key={group.name}>
-            <div className="sheet-group-title">{group.name}</div>
-            {group.keys.map((key) => (
-              <TraitRow key={key} traitKey={key} sheet={sheet} update={update} />
-            ))}
-          </div>
-        ))}
-      </div>
-
-      <div className="sheet-section-title">Способности</div>
-      <div className="sheet-groups">
-        {ABILITY_GROUPS.map((group) => (
-          <div key={group.name}>
-            <div className="sheet-group-title">{group.name}</div>
-            {group.keys.map((key) => (
-              <TraitRow key={key} traitKey={key} sheet={sheet} update={update} />
-            ))}
-          </div>
-        ))}
-      </div>
-
-      <div className="sheet-section-title">Преимущества</div>
-      <div className="sheet-groups">
-        <NamedTraits
-          title="Дисциплины"
-          addLabel="добавить дисциплину"
-          list="sheet-disciplines"
-          traits={sheet.disciplines}
-          locked={locked}
-          onChange={(disciplines) => set("disciplines", disciplines)}
-        />
-        <NamedTraits
-          title="Факты биографии"
-          addLabel="добавить факт биографии"
-          list="sheet-backgrounds"
-          traits={sheet.backgrounds}
-          locked={locked}
-          onChange={(backgrounds) => set("backgrounds", backgrounds)}
-        />
-        <div>
-          <div className="sheet-group-title">Добродетели</div>
-          {VIRTUE_KEYS.map((key) => (
-            <div className="sheet-row" key={key}>
-              <div className="sheet-row-name">
-                <RollButton
-                  dice={sheet.virtues[key]}
-                  label={VIRTUE_NAMES[key]}
-                  name={VIRTUE_NAMES[key]}
-                />
-              </div>
-              <Dots
-                label={VIRTUE_NAMES[key]}
-                value={sheet.virtues[key]}
-                max={MAX_DOTS}
-                disabled={locked}
-                onClick={(index) =>
-                  update((sheet) => ({
+      {!(locked && profileFolded) && (
+        <div className="sheet-profile">
+          <label className="sheet-field">
+            <span>Натура:</span>
+            <TextField
+              label="Натура"
+              value={sheet.nature}
+              list="sheet-archetypes"
+              disabled={locked}
+              onChange={(value) => set("nature", value)}
+            />
+          </label>
+          <label className="sheet-field">
+            <span>Клан:</span>
+            <TextField
+              label="Клан"
+              value={sheet.clan}
+              list="sheet-clans"
+              disabled={locked}
+              onChange={(value) => set("clan", value)}
+            />
+          </label>
+          <label className="sheet-field">
+            <span>Возраст:</span>
+            <TextField
+              label="Возраст"
+              value={sheet.age}
+              disabled={locked}
+              onChange={(value) => set("age", value)}
+            />
+          </label>
+          <label className="sheet-field">
+            <span>Поколение:</span>
+            <select
+              aria-label="Поколение"
+              value={sheet.generation}
+              disabled={locked}
+              onChange={(event) =>
+                update((sheet) => {
+                  const generation = Number(event.target.value);
+                  return {
                     ...sheet,
-                    virtues: {
-                      ...sheet.virtues,
-                      [key]: clickDots(sheet.virtues[key], index),
-                    },
-                  }))
-                }
-              />
+                    generation,
+                    bloodPool: Math.min(
+                      sheet.bloodPool,
+                      getBlood(generation).pool
+                    ),
+                  };
+                })
+              }
+            >
+              {generations.map((generation) => (
+                <option key={generation} value={generation}>
+                  {generation}-е
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="sheet-field">
+            <span>Опыт:</span>
+            <TextField
+              label="Опыт"
+              value={sheet.experience}
+              disabled={locked}
+              onChange={(value) => set("experience", value)}
+            />
+          </label>
+        </div>
+      )}
+
+      <Section id="attributes" title="Характеристики">
+        <div className="sheet-groups">
+          {ATTRIBUTE_GROUPS.map((group) => (
+            <div key={group.name}>
+              <div className="sheet-group-title">{group.name}</div>
+              {group.keys.map((key) => (
+                <TraitRow
+                  key={key}
+                  traitKey={key}
+                  sheet={sheet}
+                  update={update}
+                />
+              ))}
             </div>
           ))}
         </div>
-      </div>
+      </Section>
 
-      <div className="sheet-section-title">Статус</div>
-      <div className="sheet-groups">
-        <div>
-          <TextList
-            title="Достоинства"
-            addLabel="добавить достоинство"
-            list="sheet-merits"
-            items={sheet.merits}
-            locked={locked}
-            onChange={(merits) => set("merits", merits)}
-          />
-          <TextList
-            title="Недостатки"
-            addLabel="добавить недостаток"
-            list="sheet-flaws"
-            items={sheet.flaws}
-            locked={locked}
-            onChange={(flaws) => set("flaws", flaws)}
-          />
+      <Section id="abilities" title="Способности">
+        <div className="sheet-groups">
+          {ABILITY_GROUPS.map((group) => (
+            <div key={group.name}>
+              <div className="sheet-group-title">{group.name}</div>
+              {group.keys.map((key) => (
+                <TraitRow
+                  key={key}
+                  traitKey={key}
+                  sheet={sheet}
+                  update={update}
+                />
+              ))}
+            </div>
+          ))}
         </div>
-        <div>
-          <div className="sheet-block">
-            <div className="sheet-row">
-              <div className="sheet-row-name">
-                {locked ? (
+      </Section>
+
+      <Section id="advantages" title="Преимущества">
+        <div className="sheet-groups">
+          <NamedTraits
+            title="Дисциплины"
+            addLabel="добавить дисциплину"
+            list="sheet-disciplines"
+            traits={sheet.disciplines}
+            locked={locked}
+            onChange={(disciplines) => set("disciplines", disciplines)}
+          />
+          <NamedTraits
+            title="Факты биографии"
+            addLabel="добавить факт биографии"
+            list="sheet-backgrounds"
+            traits={sheet.backgrounds}
+            locked={locked}
+            onChange={(backgrounds) => set("backgrounds", backgrounds)}
+          />
+          <div>
+            <div className="sheet-group-title">Добродетели</div>
+            {VIRTUE_KEYS.map((key) => (
+              <div className="sheet-row" key={key}>
+                <div className="sheet-row-name">
                   <RollButton
-                    dice={sheet.humanity}
-                    label={sheet.path || "Человечность"}
-                    name={sheet.path || "Человечность"}
+                    dice={sheet.virtues[key]}
+                    label={VIRTUE_NAMES[key]}
+                    name={VIRTUE_NAMES[key]}
                   />
-                ) : (
-                  <>
+                </div>
+                <Dots
+                  label={VIRTUE_NAMES[key]}
+                  value={sheet.virtues[key]}
+                  max={MAX_DOTS}
+                  disabled={locked}
+                  onClick={(index) =>
+                    update((sheet) => ({
+                      ...sheet,
+                      virtues: {
+                        ...sheet.virtues,
+                        [key]: clickDots(sheet.virtues[key], index),
+                      },
+                    }))
+                  }
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      <Section id="status" title="Статус">
+        <div className="sheet-groups">
+          <div>
+            <TextList
+              title="Достоинства"
+              addLabel="добавить достоинство"
+              list="sheet-merits"
+              items={sheet.merits}
+              locked={locked}
+              onChange={(merits) => set("merits", merits)}
+            />
+            <TextList
+              title="Недостатки"
+              addLabel="добавить недостаток"
+              list="sheet-flaws"
+              items={sheet.flaws}
+              locked={locked}
+              onChange={(flaws) => set("flaws", flaws)}
+            />
+          </div>
+          <div>
+            <div className="sheet-block">
+              <div className="sheet-row">
+                <div className="sheet-row-name">
+                  {locked ? (
                     <RollButton
                       dice={sheet.humanity}
                       label={sheet.path || "Человечность"}
+                      name={sheet.path || "Человечность"}
                     />
-                    <TextField
-                      label="Человечность или Путь"
-                      value={sheet.path}
-                      list="sheet-paths"
-                      placeholder="Человечность"
-                      onChange={(value) => set("path", value)}
-                    />
-                  </>
-                )}
+                  ) : (
+                    <>
+                      <RollButton
+                        dice={sheet.humanity}
+                        label={sheet.path || "Человечность"}
+                      />
+                      <TextField
+                        label="Человечность или Путь"
+                        value={sheet.path}
+                        list="sheet-paths"
+                        placeholder="Человечность"
+                        onChange={(value) => set("path", value)}
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="sheet-centered">
+                <Dots
+                  label={sheet.path || "Человечность"}
+                  value={sheet.humanity}
+                  max={MAX_HUMANITY}
+                  disabled={locked}
+                  onClick={(index) =>
+                    set("humanity", clickDots(sheet.humanity, index))
+                  }
+                />
               </div>
             </div>
-            <div className="sheet-centered">
-              <Dots
-                label={sheet.path || "Человечность"}
-                value={sheet.humanity}
-                max={MAX_HUMANITY}
-                disabled={locked}
-                onClick={(index) =>
-                  set("humanity", clickDots(sheet.humanity, index))
-                }
-              />
-            </div>
-          </div>
-          <div className="sheet-block">
-            <div className="sheet-row">
-              <div className="sheet-row-name">
-                <RollButton dice={sheet.willpower} label="Воля" name="Воля" />
+            <div className="sheet-block">
+              <div className="sheet-row">
+                <div className="sheet-row-name">
+                  <RollButton dice={sheet.willpower} label="Воля" name="Воля" />
+                </div>
               </div>
-            </div>
-            <div className="sheet-centered">
-              <Dots
-                label="Воля"
-                value={sheet.willpower}
+              <div className="sheet-centered">
+                <Dots
+                  label="Воля"
+                  value={sheet.willpower}
+                  max={MAX_WILLPOWER}
+                  disabled={locked}
+                  onClick={(index) =>
+                    set("willpower", clickDots(sheet.willpower, index))
+                  }
+                />
+              </div>
+              <Squares
+                label="Запас воли"
+                value={sheet.willpowerPool}
                 max={MAX_WILLPOWER}
-                disabled={locked}
-                onClick={(index) =>
-                  set("willpower", clickDots(sheet.willpower, index))
-                }
+                onChange={(value) => set("willpowerPool", value)}
               />
             </div>
-            <Squares
-              label="Запас воли"
-              value={sheet.willpowerPool}
-              max={MAX_WILLPOWER}
-              onChange={(value) => set("willpowerPool", value)}
-            />
-          </div>
-          <div className="sheet-block">
-            <div className="sheet-group-title">Запас крови</div>
-            <Squares
-              label="Запас крови"
-              value={sheet.bloodPool}
-              max={blood.pool}
-              onChange={(value) => set("bloodPool", value)}
-            />
-            <div className="sheet-hint">
-              Предел траты в ход: {blood.perTurn}
+            <div className="sheet-block">
+              <div className="sheet-group-title">Запас крови</div>
+              <Squares
+                label="Запас крови"
+                value={sheet.bloodPool}
+                max={blood.pool}
+                onChange={(value) => set("bloodPool", value)}
+              />
+              <div className="sheet-hint">
+                Предел траты в ход: {blood.perTurn}
+              </div>
             </div>
           </div>
+          <Health sheet={sheet} update={update} />
         </div>
-        <Health sheet={sheet} update={update} />
-      </div>
+      </Section>
     </>
   );
 }

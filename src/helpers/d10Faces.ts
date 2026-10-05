@@ -7,7 +7,7 @@ import { DiceVector3 } from "../types/DiceVector3";
  * Generous on purpose: a die that touches its neighbour and leans a little is easy
  * to read, only dice that really lie on something need to be moved.
  */
-const FLAT_TOLERANCE_DEGREES = 12;
+const FLAT_TOLERANCE_DEGREES = 10;
 const FLAT_MIN_UP = Math.cos((FLAT_TOLERANCE_DEGREES * Math.PI) / 180);
 
 function sub(a: DiceVector3, b: DiceVector3): DiceVector3 {

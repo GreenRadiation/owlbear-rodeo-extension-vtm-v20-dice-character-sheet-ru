@@ -50,6 +50,8 @@ describe("settings", () => {
       previewLastOnly: true,
       hiddenPreviews: ["a", 7, "b"],
       sheetOpen: true,
+      collapsed: true,
+      foldedSections: ["status", 5],
       tenSymbol: "0",
       oneSymbol: "nonsense",
     });
@@ -75,6 +77,8 @@ describe("settings", () => {
       previewLastOnly: true,
       hiddenPreviews: ["a", "b"],
       sheetOpen: true,
+      collapsed: true,
+      foldedSections: ["status"],
       tenSymbol: "0",
       oneSymbol: defaultSettings.oneSymbol,
     });

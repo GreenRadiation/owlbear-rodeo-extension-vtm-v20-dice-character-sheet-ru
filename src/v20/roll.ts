@@ -24,6 +24,8 @@ export interface RollOutcome {
   successes: number;
   /** No die rolled a success and at least one die rolled a one */
   botch: boolean;
+  /** How many dice rolled a one */
+  ones: number;
 }
 
 /**
@@ -50,6 +52,7 @@ export function getRollOutcome(
   return {
     successes: Math.max(0, hits - ones),
     botch: hits === 0 && ones > 0,
+    ones,
   };
 }
 
@@ -93,5 +96,9 @@ export function formatOutcome(
   outcome: RollOutcome,
   symbols = DEFAULT_SYMBOLS
 ): string {
-  return outcome.botch ? symbols.one : `${outcome.successes}`;
+  if (!outcome.botch) {
+    return `${outcome.successes}`;
+  }
+  // A botch written with a digit would look like a number of successes
+  return /^\d+$/.test(symbols.one) ? `\u2212${outcome.ones}` : symbols.one;
 }

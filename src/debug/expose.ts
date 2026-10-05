@@ -1,6 +1,7 @@
 import { useDiceControlsStore, getDiceToRoll } from "../controls/store";
 import { useDiceRollStore } from "../dice/store";
 import { getD10Flatness } from "../helpers/d10Faces";
+import { useSettingsStore } from "../settings/store";
 
 /**
  * Give the browser console access to the stores in development.
@@ -11,6 +12,7 @@ export function exposeDebug() {
   debug.v20 = {
     useDiceControlsStore,
     useDiceRollStore,
+    useSettingsStore,
     getDiceToRoll,
     getD10Flatness,
   };

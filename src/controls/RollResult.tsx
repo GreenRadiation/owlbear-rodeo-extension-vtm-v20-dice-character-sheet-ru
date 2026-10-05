@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
+import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Stack from "@mui/material/Stack";
 import Grow from "@mui/material/Grow";
@@ -48,7 +49,11 @@ export function RollResult({
   onSpecialtyChange?: (specialty: boolean) => void;
   expanded: boolean;
   onExpand: (expand: boolean) => void;
-  /** There is room for the difficulty and the speciality at the sides of the result */
+  /**
+   * There is room for the difficulty and the speciality at the sides of the result.
+   * The result then takes the whole width it is given and puts them
+   * halfway between its middle and its edges.
+   */
   wide?: boolean;
 }) {
   const symbols = useSymbols();
@@ -58,10 +63,15 @@ export function RollResult({
   );
   const sorted = useMemo(() => sortValues(values), [values]);
 
+  // The tooltip of the result hangs below everything here, right under the
+  // result it would cover the values it is about
+  const [root, setRoot] = useState<HTMLDivElement | null>(null);
+
   const result = (
     <Tooltip
       title={expanded ? "Скрыть значения" : "Показать значения"}
       disableInteractive
+      PopperProps={root ? { anchorEl: root } : undefined}
     >
       <Button
         sx={{ pointerEvents: "all", padding: 0.5, minWidth: "40px" }}
@@ -112,13 +122,15 @@ export function RollResult({
     </Stack>
   );
 
-  // The speciality is a checkbox next to a ten that counts twice
+  // The speciality is a checkbox over two tens: a ten counts twice
   const SpecialtyIcon = specialty ? CheckedIcon : UncheckedIcon;
   const specialtyLabel = (
-    <Stack direction="row" alignItems="center" gap={0.25} px={0.5}>
+    <Stack alignItems="center" px={0.75}>
       <SpecialtyIcon sx={{ color: "white", fontSize: 18 }} />
-      <Typography color="white" variant="body2" noWrap>
-        {symbols.ten}×2
+      <Typography color="white" variant="body2" lineHeight="16px" noWrap>
+        {symbols.ten.length > 1
+          ? `${symbols.ten} ${symbols.ten}`
+          : `${symbols.ten}${symbols.ten}`}
       </Typography>
     </Stack>
   );
@@ -130,7 +142,7 @@ export function RollResult({
         aria-checked={specialty}
         aria-label="Специализация"
         onClick={() => onSpecialtyChange(!specialty)}
-        sx={{ pointerEvents: "all", borderRadius: 1, py: 0.5 }}
+        sx={{ pointerEvents: "all", borderRadius: 1, py: 0.25 }}
       >
         {specialtyLabel}
       </ButtonBase>
@@ -145,18 +157,23 @@ export function RollResult({
   );
 
   return (
-    <Stack alignItems="center">
+    <Stack alignItems="center" width={wide ? "100%" : undefined} ref={setRoot}>
       {wide ? (
         // The sides are as wide as each other to keep the result in the middle
-        <Stack direction="row" alignItems="center" gap={1}>
-          <Stack width="100px" alignItems="flex-end">
-            {difficultyControl}
-          </Stack>
+        <Box
+          component="div"
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "1fr auto 1fr",
+            alignItems: "center",
+            justifyItems: "center",
+            width: "100%",
+          }}
+        >
+          {difficultyControl}
           {result}
-          <Stack width="100px" alignItems="flex-start">
-            {specialtyControl}
-          </Stack>
-        </Stack>
+          <div>{specialtyControl}</div>
+        </Box>
       ) : (
         <>
           {result}

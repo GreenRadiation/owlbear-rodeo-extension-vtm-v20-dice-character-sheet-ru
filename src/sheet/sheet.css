@@ -64,6 +64,13 @@
   -webkit-text-fill-color: #000;
 }
 
+/* Nothing to pick on a locked sheet: no arrow */
+.sheet select:disabled {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
 .sheet-toolbar {
   display: flex;
   align-items: center;
@@ -73,8 +80,34 @@
 
 .sheet-toolbar .sheet-name {
   flex: 1;
+  min-width: 0;
   font-size: 1.25em;
   font-weight: 500;
+}
+
+/* The name of a locked sheet folds the profile below it */
+.sheet-toolbar button.sheet-name {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3em;
+  padding: 0 0.1em;
+  border: none;
+  border-bottom: 1px solid transparent;
+  background: none;
+  text-align: left;
+}
+
+.sheet-toolbar button.sheet-name > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet-fold-arrow {
+  flex-shrink: 0;
+  font-size: 0.7em;
+  font-weight: 400;
+  color: #777;
 }
 
 .sheet-button {
@@ -140,14 +173,34 @@
   color: #555;
 }
 
+/* The title of a section is a button that folds it */
 .sheet-section-title {
   display: flex;
   align-items: center;
   gap: 0.6em;
+  width: 100%;
   margin: 0.7em 0 0.3em;
+  padding: 0;
+  border: none;
+  background: none;
   font-size: 1.05em;
   font-weight: 500;
   text-align: center;
+}
+
+.sheet button.sheet-section-title {
+  font-size: 1.05em;
+  font-weight: 500;
+}
+
+.sheet-section-title:hover {
+  color: #b00;
+}
+
+.sheet-section-title > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3em;
 }
 
 .sheet-section-title::before,

@@ -1,4 +1,4 @@
-import { Physics } from "@react-three/rapier";
+import { Physics, useRapier } from "@react-three/rapier";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getDieFromDice } from "../helpers/getDieFromDice";
 import { TrayColliders } from "../colliders/TrayColliders";
@@ -10,6 +10,64 @@ import { Dice as DefaultDice } from "./Dice";
 import { PhysicsDice } from "./PhysicsDice";
 import { useDebugStore } from "../debug/store";
 import { DiceScaleContext } from "./scale";
+import { PHYSICS_TIME_STEP } from "./timing";
+
+/** Without an animation frame for this long the window is taken to be not visible, in milliseconds */
+const FRAME_TIMEOUT = 250;
+/** How often to check for missing animation frames, in milliseconds */
+const FRAME_CHECK_INTERVAL = 100;
+/** The most the physics catch up in one go, in seconds: longer than any roll */
+const MAX_CATCH_UP = 10;
+
+/**
+ * Keeps the physics going in a window that isn't visible.
+ * Browsers stop firing animation frames when a window is hidden, minimized
+ * or covered and the physics are stepped by them. Without this a roll made
+ * right before switching to another window never lands and everyone waits
+ * for its result.
+ * The steps are the same fixed steps so the roll comes out the same.
+ */
+function HiddenWindowStepper({ paused }: { paused: boolean }) {
+  const { step } = useRapier();
+
+  useEffect(() => {
+    if (paused) {
+      return;
+    }
+    let lastFrame = performance.now();
+    let frame = requestAnimationFrame(function loop() {
+      lastFrame = performance.now();
+      frame = requestAnimationFrame(loop);
+    });
+    /** When the physics were last stepped from here, 0 while frames are coming */
+    let lastStep = 0;
+    // Timers of a hidden window are slowed down too, hence the catching up
+    const interval = setInterval(() => {
+      const now = performance.now();
+      if (now - lastFrame < FRAME_TIMEOUT) {
+        lastStep = 0;
+        return;
+      }
+      let remaining = Math.min(
+        (now - (lastStep || lastFrame)) / 1000,
+        MAX_CATCH_UP
+      );
+      lastStep = now;
+      while (remaining > 0) {
+        // A step call takes half a second at most
+        const delta = Math.min(remaining, 0.25);
+        step(delta);
+        remaining -= delta;
+      }
+    }, FRAME_CHECK_INTERVAL);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearInterval(interval);
+    };
+  }, [paused, step]);
+
+  return null;
+}
 
 function ScaledDiceRoll({
   roll,
@@ -48,15 +106,28 @@ function ScaledDiceRoll({
    * the frame after everything is created
    */
   const [paused, setPaused] = useState(true);
+  const finished = Boolean(finishedTransforms);
   useEffect(() => {
-    if (finishedTransforms) {
+    if (finished) {
       setPaused(true);
-    } else {
-      requestAnimationFrame(() => {
-        setPaused(false);
-      });
+      return;
     }
-  }, [finishedTransforms]);
+    // A window that isn't visible gets no animation frames, don't wait for one forever
+    let started = false;
+    const start = () => {
+      if (!started) {
+        started = true;
+        setPaused(false);
+      }
+    };
+    const frame = requestAnimationFrame(start);
+    const timeout = setTimeout(start, 100);
+    return () => {
+      started = true;
+      cancelAnimationFrame(frame);
+      clearTimeout(timeout);
+    };
+  }, [finished]);
 
   if (finishedTransforms) {
     // Move to a static dice representation when all dice values have been found
@@ -88,11 +159,12 @@ function ScaledDiceRoll({
       <Physics
         colliders={false}
         interpolate={false}
-        timeStep={1 / 120}
+        timeStep={PHYSICS_TIME_STEP}
         debug={allowPhysicsDebug}
         updateLoop="independent"
         paused={paused}
       >
+        <HiddenWindowStepper paused={paused} />
         <TrayColliders widthScale={roll.tray || 1} />
         {dice?.map((die) => {
           const dieThrow = rollThrows[die.id];

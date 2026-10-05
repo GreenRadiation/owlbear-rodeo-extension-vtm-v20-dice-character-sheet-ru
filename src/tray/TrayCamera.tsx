@@ -1,4 +1,5 @@
 import { PerspectiveCamera } from "@react-three/drei";
+import { useThree } from "@react-three/fiber";
 
 /** How high above the tray the camera is */
 const CAMERA_HEIGHT = 4.3;
@@ -21,11 +22,19 @@ export function TrayCamera({
   trayWidth: number;
   landscape?: boolean;
 }) {
-  // The field of view of a camera is vertical. An upright tray fills it with
-  // its length, a tray on its side with its width which is shorter
-  const viewHeight = landscape ? (VIEW_LENGTH / 2) * trayWidth : VIEW_LENGTH;
-  const fov =
-    (2 * Math.atan(viewHeight / 2 / CAMERA_HEIGHT) * 180) / Math.PI;
+  const size = useThree((state) => state.size);
+  const aspect = size.height > 0 ? size.width / size.height : 1;
+
+  // What has to be seen across and along the view
+  const trayViewWidth = (VIEW_LENGTH / 2) * trayWidth;
+  const across = landscape ? VIEW_LENGTH : trayViewWidth;
+  const along = landscape ? trayViewWidth : VIEW_LENGTH;
+  // The field of view of a camera is vertical. Usually the view has the shape
+  // of the tray. When it doesn't, for example right after the size of the
+  // tray was changed in the settings with dice still in it, the tray is made
+  // smaller to fit
+  const viewHeight = Math.max(along, across / aspect);
+  const fov = (2 * Math.atan(viewHeight / 2 / CAMERA_HEIGHT) * 180) / Math.PI;
 
   return (
     <PerspectiveCamera

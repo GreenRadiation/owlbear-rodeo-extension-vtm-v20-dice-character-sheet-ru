@@ -20,6 +20,8 @@ import ExpandIcon from "@mui/icons-material/ExpandMoreRounded";
 import CollapseIcon from "@mui/icons-material/ExpandLessRounded";
 
 import { SlideTransition } from "../controls/SlideTransition";
+import { useDiceControlsStore } from "../controls/store";
+import { diceSets } from "../sets/diceSets";
 import { PluginGate } from "../plugin/PluginGate";
 import { RoomDataSettings } from "../plugin/RoomDataSettings";
 import { ONE_SYMBOLS, TEN_SYMBOLS } from "../v20/roll";
@@ -267,10 +269,42 @@ function SymbolSetting({
   );
 }
 
+/** The look of the dice of the player, everyone sees the rolls in it */
+function DiceStyleSetting() {
+  const diceSet = useDiceControlsStore((state) => state.diceSet);
+  const changeDiceSet = useDiceControlsStore((state) => state.changeDiceSet);
+
+  return (
+    <Stack gap={0.5}>
+      <Typography>Стиль кубов</Typography>
+      <Stack direction="row" flexWrap="wrap" gap={0.5}>
+        {diceSets.map((set) => (
+          <IconButton
+            key={set.id}
+            aria-label={set.name}
+            aria-pressed={diceSet.id === set.id}
+            onClick={() => changeDiceSet(set)}
+            sx={{
+              padding: "4px",
+              backgroundColor:
+                diceSet.id === set.id
+                  ? "rgba(255, 255, 255, 0.16) !important"
+                  : undefined,
+            }}
+          >
+            <img src={set.previewImage} width={36} height={36} alt="" />
+          </IconButton>
+        ))}
+      </Stack>
+    </Stack>
+  );
+}
+
 function Settings({ onClose }: { onClose: () => void }) {
   const settings = useSettingsStore((state) => state.settings);
   const changeSettings = useSettingsStore((state) => state.changeSettings);
   const resetSettings = useSettingsStore((state) => state.resetSettings);
+  const changeDiceSet = useDiceControlsStore((state) => state.changeDiceSet);
 
   const [specialOpen, setSpecialOpen] = useState(false);
 
@@ -303,7 +337,9 @@ function Settings({ onClose }: { onClose: () => void }) {
         <Setting
           label="Броски других игроков"
           value={Math.max(0, PREVIEW_HEIGHTS.indexOf(settings.previewHeight))}
-          format={(index) => (index === 0 ? "не показывать" : `размер ${index}`)}
+          format={(index) =>
+            index === 0 ? "не показывать" : `размер ${index}`
+          }
           min={0}
           max={PREVIEW_HEIGHTS.length - 1}
           step={1}
@@ -344,6 +380,7 @@ function Settings({ onClose }: { onClose: () => void }) {
         )}
       </Stack>
       <Divider />
+      <DiceStyleSetting />
       <Stack gap={1}>
         <SymbolSetting
           label="Десятка"
@@ -378,7 +415,13 @@ function Settings({ onClose }: { onClose: () => void }) {
         </Stack>
       </PluginGate>
       <Stack direction="row" justifyContent="space-between">
-        <Button color="inherit" onClick={resetSettings}>
+        <Button
+          color="inherit"
+          onClick={() => {
+            resetSettings();
+            changeDiceSet(diceSets[0]);
+          }}
+        >
           Сбросить
         </Button>
         <Button variant="contained" onClick={onClose}>

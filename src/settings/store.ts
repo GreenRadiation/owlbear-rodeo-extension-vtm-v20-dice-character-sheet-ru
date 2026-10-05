@@ -55,6 +55,13 @@ export interface Settings {
   hiddenPreviews: string[];
   /** If the character sheet is shown */
   sheetOpen: boolean;
+  /**
+   * Everything of the extension is out of the way of the map: its window is
+   * shrunk to a single button and the previews are hidden
+   */
+  collapsed: boolean;
+  /** Ids of the sections of the character sheet that are folded */
+  foldedSections: string[];
   /** How a ten and a one are written, see TEN_SYMBOLS and ONE_SYMBOLS */
   tenSymbol: string;
   oneSymbol: string;
@@ -84,33 +91,38 @@ export const DICE_SCALE_STEP = 0.05;
 
 /** The most players that can be kept out of the previews */
 const MAX_HIDDEN_PREVIEWS = 30;
+/** More than the sheet has sections */
+const MAX_FOLDED_SECTIONS = 20;
 
+/** The defaults were picked by the author of the extension for his group */
 export const defaultSettings: Settings = {
-  // A small tray with the sheet right below it makes a narrow strip at the side of the screen
+  // An upright tray with a sheet in one column below it: a narrow strip at the side of the screen
   small: {
-    height: 560,
+    height: 500,
     width: DEFAULT_TRAY_WIDTH,
     diceScale: 1,
     sheetPlacement: "below",
-    sheetHeight: 460,
+    sheetHeight: 600,
     sheetWidth: 420,
+    sheetColumns: 1,
+  },
+  // A tray on its side with a sheet in three columns below it
+  large: {
+    height: 360,
+    width: 1.8,
+    diceScale: 1,
+    sheetPlacement: "below",
+    sheetHeight: 600,
+    sheetWidth: 440,
     sheetColumns: 3,
   },
-  // A large tray takes the whole height of the screen so its sheet goes to the side
-  large: {
-    height: 880,
-    width: DEFAULT_TRAY_WIDTH,
-    diceScale: 1,
-    sheetPlacement: "right",
-    sheetHeight: 460,
-    sheetWidth: 440,
-    sheetColumns: 2,
-  },
   trayLarge: false,
-  previewHeight: 300,
+  previewHeight: 380,
   previewLastOnly: false,
   hiddenPreviews: [],
   sheetOpen: false,
+  collapsed: false,
+  foldedSections: [],
   tenSymbol: DEFAULT_SYMBOLS.ten,
   oneSymbol: DEFAULT_SYMBOLS.one,
 };
@@ -229,6 +241,13 @@ export function sanitizeSettings(value: unknown): Settings {
       : d.hiddenPreviews,
     sheetOpen:
       typeof stored.sheetOpen === "boolean" ? stored.sheetOpen : d.sheetOpen,
+    collapsed:
+      typeof stored.collapsed === "boolean" ? stored.collapsed : d.collapsed,
+    foldedSections: Array.isArray(stored.foldedSections)
+      ? stored.foldedSections
+          .filter((id): id is string => typeof id === "string")
+          .slice(0, MAX_FOLDED_SECTIONS)
+      : d.foldedSections,
     tenSymbol: TEN_SYMBOLS.includes(stored.tenSymbol as string)
       ? (stored.tenSymbol as string)
       : d.tenSymbol,

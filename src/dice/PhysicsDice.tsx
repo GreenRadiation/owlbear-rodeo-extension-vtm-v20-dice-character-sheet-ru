@@ -16,6 +16,7 @@ import { getDieDensity } from "../helpers/getDieDensity";
 import { DiceThrow } from "../types/DiceThrow";
 import { DiceTransform } from "../types/DiceTransform";
 import { DiceCollider } from "../colliders/DiceCollider";
+import { PHYSICS_TIME_STEP } from "./timing";
 import {
   getD10TopFaceNormal,
   getD10Value,
@@ -26,8 +27,13 @@ import {
 const MIN_ROLL_FINISHED_SPEED = 0.005;
 /** Cool down in MS before dice audio can get played again */
 const AUDIO_COOLDOWN = 200;
-/** Force stop the physics roll after 6 seconds */
-const MAX_ROLL_TIME = 6000;
+/**
+ * Force stop the physics roll after 6 seconds of simulated time.
+ * Counted in physics steps and not by the clock: the physics of a window
+ * that isn't visible can run late and stopping them early leaves the dice
+ * hanging in the air.
+ */
+const MAX_ROLL_STEPS = Math.round(6 / PHYSICS_TIME_STEP);
 /**
  * A die that lies flat and moves slower than this for a while is done.
  * Dice that touch each other can tremble for seconds without ever getting
@@ -36,7 +42,7 @@ const MAX_ROLL_TIME = 6000;
 const SETTLE_LINEAR_SPEED = 0.03;
 const SETTLE_ANGULAR_SPEED = 0.15;
 /** Physics steps a die has to stay settled for: a quarter of a second */
-const SETTLE_STEPS = 30;
+const SETTLE_STEPS = Math.round(0.25 / PHYSICS_TIME_STEP);
 /**
  * A die that isn't flat and moves slower than this for a while has come to rest
  * leaning on something. A tumbling die also gets this slow for a moment when it
@@ -44,7 +50,7 @@ const SETTLE_STEPS = 30;
  */
 const LEAN_SPEED = 0.03;
 /** Physics steps a die has to stay that slow for: a tenth of a second */
-const LEAN_STEPS = 12;
+const LEAN_STEPS = Math.round(0.1 / PHYSICS_TIME_STEP);
 /** How many times a die that came to rest leaning on something gets hopped away from it */
 const MAX_NUDGES = 3;
 /** Upwards speed of a nudge */
@@ -151,6 +157,8 @@ export function PhysicsDice({
   const leanStepsRef = useRef(0);
   /** Physics steps the die has been lying flat and almost still for */
   const settledStepsRef = useRef(0);
+  /** Physics steps since the die was thrown */
+  const stepsRef = useRef(0);
 
   // Use the latest callback without restarting the roll when it changes
   const onRollFinishedRef = useRef(onRollFinished);
@@ -224,6 +232,12 @@ export function PhysicsDice({
     if (!rigidBody || lockedRef.current || fixedTransform) {
       return;
     }
+    stepsRef.current += 1;
+    if (stepsRef.current >= MAX_ROLL_STEPS) {
+      console.warn("Roll exceeded max roll time: stopping dice");
+      finishRoll();
+      return;
+    }
     const rotation = rigidBody.rotation();
     const linearSpeed = magnitude(rigidBody.linvel());
     const angularSpeed = magnitude(rigidBody.angvel());
@@ -274,20 +288,6 @@ export function PhysicsDice({
       lockDice();
     }
   }, [fixedTransform]);
-
-  // Stop the roll if over the max roll time
-  useEffect(() => {
-    let timeout = setTimeout(() => {
-      if (!lockedRef.current) {
-        console.warn("Roll exceeded max roll time: stopping dice");
-        finishRoll();
-      }
-    }, MAX_ROLL_TIME);
-
-    return () => {
-      clearTimeout(timeout);
-    };
-  }, [finishRoll]);
 
   const listener = useAudioListener();
   const lastAudioTimeRef = useRef(0);

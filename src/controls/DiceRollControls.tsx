@@ -265,7 +265,7 @@ function FinishedRollControls() {
     <>
       <GradientOverlay
         top
-        height={(wide ? 110 : 170) + (resultsExpanded ? 80 : 0)}
+        height={(wide ? 110 : 180) + (resultsExpanded ? 80 : 0)}
       />
       <Box
         sx={{
@@ -287,7 +287,14 @@ function FinishedRollControls() {
         >
           <Tooltip title="Перебросить все" sx={{ pointerEvents: "all" }}>
             <IconButton
-              onClick={() => reroll()}
+              onClick={() => {
+                // The size of the tray and the dice may have changed since the roll
+                const mode = getTrayMode(useSettingsStore.getState().settings);
+                reroll(undefined, undefined, {
+                  scale: mode.diceScale,
+                  tray: getTrayModelWidth(mode.width),
+                });
+              }}
               sx={{ pointerEvents: "all", color: "white" }}
             >
               <RerollDiceIcon />
@@ -307,10 +314,13 @@ function FinishedRollControls() {
         sx={{
           position: "absolute",
           top: 0,
-          left: "50%",
-          transform: "translateX(-50%)",
+          // A wide result takes the whole space between the buttons at the sides
+          left: wide ? 64 : "50%",
+          right: wide ? 64 : undefined,
+          transform: wide ? undefined : "translateX(-50%)",
           pointerEvents: "none",
-          padding: 3,
+          py: 3,
+          px: wide ? 0 : 3,
           alignItems: "center",
         }}
         component="div"

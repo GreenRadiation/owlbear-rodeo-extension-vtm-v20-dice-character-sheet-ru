@@ -35,8 +35,15 @@ interface DiceRollState {
   specialty: boolean;
   startRoll: (roll: DiceRoll, speedMultiplier?: number) => void;
   clearRoll: (ids?: string) => void;
-  /** Reroll select ids of dice or reroll all dice by passing `undefined` */
-  reroll: (ids?: string[], manualThrows?: Record<string, DiceThrow>) => void;
+  /**
+   * Reroll select ids of dice or reroll all dice by passing `undefined`.
+   * When all dice are rerolled the roll can move to another size of the dice and the tray.
+   */
+  reroll: (
+    ids?: string[],
+    manualThrows?: Record<string, DiceThrow>,
+    size?: Pick<DiceRoll, "scale" | "tray">
+  ) => void;
   finishDieRoll: (id: string, number: number, transform: DiceTransform) => void;
   setDifficulty: (difficulty: number) => void;
   setSpecialty: (specialty: boolean) => void;
@@ -80,7 +87,7 @@ export const useDiceRollStore = create<DiceRollState>()(
         state.difficulty = DEFAULT_DIFFICULTY;
         state.specialty = false;
       }),
-    reroll: (ids, manualThrows) => {
+    reroll: (ids, manualThrows, size) => {
       set((state) => {
         if (!state.roll) {
           return;
@@ -89,6 +96,10 @@ export const useDiceRollStore = create<DiceRollState>()(
           // Rerolling everything is a new roll
           state.difficulty = DEFAULT_DIFFICULTY;
           state.specialty = false;
+          if (size) {
+            state.roll.scale = size.scale;
+            state.roll.tray = size.tray;
+          }
         }
         const trayWidth = state.roll.tray || 1;
         const thrower = new DiceThrower(trayWidth);

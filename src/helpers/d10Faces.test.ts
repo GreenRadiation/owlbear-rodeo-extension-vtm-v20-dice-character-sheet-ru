@@ -37,7 +37,7 @@ describe("d10 faces", () => {
     expect(isD10Cocked(axisAngle(1, 0, 0, bestDegrees))).toBe(false);
     // A small lean is fine, a big one is not
     expect(isD10Cocked(axisAngle(1, 0, 0, bestDegrees + 8))).toBe(false);
-    expect(isD10Cocked(axisAngle(1, 0, 0, bestDegrees + 16))).toBe(true);
+    expect(isD10Cocked(axisAngle(1, 0, 0, bestDegrees + 12))).toBe(true);
   });
 
   it("has every number on exactly one face", () => {

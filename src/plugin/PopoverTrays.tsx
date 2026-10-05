@@ -26,6 +26,8 @@ export function PopoverTrays() {
     (state) => state.settings.hiddenPreviews
   );
   const enabled = height > 0;
+  // The previews keep what they show while everything is collapsed, only their window goes away
+  const collapsed = useSettingsStore((state) => state.settings.collapsed);
 
   /** Widths in pixels of the previews that are shown by the connection id of their player */
   const [widths, setWidths] = useState<Record<string, number>>({});
@@ -66,7 +68,7 @@ export function PopoverTrays() {
     shownPlayers[0];
 
   // Fit the window to the previews, an empty window is hidden
-  const shownWidths = enabled ? Object.values(widths) : [];
+  const shownWidths = enabled && !collapsed ? Object.values(widths) : [];
   const count = shownWidths.length;
   const totalWidth = shownWidths.reduce((a, b) => a + b, 0);
   useEffect(() => {

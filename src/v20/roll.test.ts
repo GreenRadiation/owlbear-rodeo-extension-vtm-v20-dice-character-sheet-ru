@@ -23,6 +23,7 @@ describe("getRollOutcome", () => {
     expect(getRollOutcome([6, 7, 5, 10, 2], 6)).toEqual({
       successes: 3,
       botch: false,
+      ones: 0,
     });
   });
 
@@ -30,6 +31,7 @@ describe("getRollOutcome", () => {
     expect(getRollOutcome([8, 9, 1, 3], 6)).toEqual({
       successes: 1,
       botch: false,
+      ones: 1,
     });
   });
 
@@ -37,6 +39,7 @@ describe("getRollOutcome", () => {
     expect(getRollOutcome([8, 1, 1, 4], 6)).toEqual({
       successes: 0,
       botch: false,
+      ones: 2,
     });
   });
 
@@ -44,6 +47,7 @@ describe("getRollOutcome", () => {
     expect(getRollOutcome([2, 3, 5], 6)).toEqual({
       successes: 0,
       botch: false,
+      ones: 0,
     });
   });
 
@@ -51,13 +55,16 @@ describe("getRollOutcome", () => {
     expect(getRollOutcome([1, 3, 5], 6)).toEqual({
       successes: 0,
       botch: true,
+      ones: 1,
     });
+    expect(getRollOutcome([1, 1, 5], 6).ones).toBe(2);
   });
 
   it("counts a ten as a single success", () => {
     expect(getRollOutcome([10, 10], 6)).toEqual({
       successes: 2,
       botch: false,
+      ones: 0,
     });
   });
 
@@ -65,11 +72,13 @@ describe("getRollOutcome", () => {
     expect(getRollOutcome([10, 10, 7, 3], 6, true)).toEqual({
       successes: 5,
       botch: false,
+      ones: 0,
     });
     // Ones cancel the doubled successes one by one
     expect(getRollOutcome([10, 1, 1, 1], 6, true)).toEqual({
       successes: 0,
       botch: false,
+      ones: 3,
     });
     // A speciality changes nothing without tens
     expect(getRollOutcome([9, 7, 1], 6, true)).toEqual(
@@ -78,6 +87,7 @@ describe("getRollOutcome", () => {
     expect(getRollOutcome([1, 3], 6, true)).toEqual({
       successes: 0,
       botch: true,
+      ones: 1,
     });
   });
 
@@ -86,9 +96,15 @@ describe("getRollOutcome", () => {
     // 4, 7 and 9 succeed, the one cancels a success
     expect(getRollOutcome(values, 4).successes).toBe(2);
     // Only the 9 succeeds and is cancelled: a failure but not a botch
-    expect(getRollOutcome(values, 8)).toEqual({ successes: 0, botch: false });
+    expect(getRollOutcome(values, 8)).toMatchObject({
+      successes: 0,
+      botch: false,
+    });
     // Nothing succeeds and there is a one
-    expect(getRollOutcome(values, 10)).toEqual({ successes: 0, botch: true });
+    expect(getRollOutcome(values, 10)).toMatchObject({
+      successes: 0,
+      botch: true,
+    });
   });
 
   it("handles the difficulty bounds", () => {
@@ -97,7 +113,11 @@ describe("getRollOutcome", () => {
   });
 
   it("handles an empty roll", () => {
-    expect(getRollOutcome([], 6)).toEqual({ successes: 0, botch: false });
+    expect(getRollOutcome([], 6)).toEqual({
+      successes: 0,
+      botch: false,
+      ones: 0,
+    });
   });
 });
 
@@ -123,12 +143,25 @@ describe("display", () => {
   });
 
   it("shows a botch as a skull and anything else as a number", () => {
-    expect(formatOutcome({ successes: 0, botch: true })).toBe("☠\uFE0E");
+    const botch = { successes: 0, botch: true, ones: 2 };
+    expect(formatOutcome(botch)).toBe("☠\uFE0E");
+    expect(formatOutcome(botch, { ten: "0", one: "x" })).toBe("x");
+    expect(formatOutcome({ successes: 0, botch: false, ones: 0 })).toBe("0");
+    expect(formatOutcome({ successes: 4, botch: false, ones: 1 })).toBe("4");
+  });
+
+  it("shows a botch as a negative number when ones are written as a digit", () => {
+    // A plain "1" would read as one success
+    const symbols = { ten: "10", one: "1" };
+    expect(formatOutcome({ successes: 0, botch: true, ones: 1 }, symbols)).toBe(
+      "\u22121"
+    );
+    expect(formatOutcome({ successes: 0, botch: true, ones: 3 }, symbols)).toBe(
+      "\u22123"
+    );
     expect(
-      formatOutcome({ successes: 0, botch: true }, { ten: "0", one: "x" })
-    ).toBe("x");
-    expect(formatOutcome({ successes: 0, botch: false })).toBe("0");
-    expect(formatOutcome({ successes: 4, botch: false })).toBe("4");
+      formatOutcome({ successes: 0, botch: false, ones: 2 }, symbols)
+    ).toBe("0");
   });
 
   it("clamps the difficulty to 2-10", () => {
