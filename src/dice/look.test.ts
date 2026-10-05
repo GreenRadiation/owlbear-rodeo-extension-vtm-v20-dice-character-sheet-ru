@@ -89,6 +89,13 @@ describe("sanitizeLook", () => {
     expect(look.metalness).toBe(DEFAULT_LOOK.metalness);
   });
 
+  it("only keeps a font it has", () => {
+    const assets = { icons: ICONS, fonts: ["gothic"] };
+    expect(sanitizeLook({ font: "gothic" }, assets).font).toBe("gothic");
+    expect(sanitizeLook({ font: "comic" }, assets).font).toBe("");
+    expect(sanitizeLook({ font: "gothic" }, ICONS).font).toBe("");
+  });
+
   it("shows the digit for an icon it doesn't have", () => {
     // An icon of a newer version of the extension
     expect(sanitizeLook({ tenIcon: "rose" }, ICONS).tenIcon).toBe("");

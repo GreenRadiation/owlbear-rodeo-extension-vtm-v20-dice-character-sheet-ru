@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo } from "react";
 
-import { ICON_IDS } from "../materials/custom/icons";
+import { LOOK_ASSETS } from "../materials/custom/assets";
 import { DiceLook, sanitizeLook } from "./look";
 
 /**
@@ -14,5 +14,5 @@ export const DiceLookContext = createContext<unknown>(undefined);
 /** The look custom dice have to be drawn with, always a valid one */
 export function useDiceLook(): DiceLook {
   const look = useContext(DiceLookContext);
-  return useMemo(() => sanitizeLook(look, ICON_IDS), [look]);
+  return useMemo(() => sanitizeLook(look, LOOK_ASSETS), [look]);
 }

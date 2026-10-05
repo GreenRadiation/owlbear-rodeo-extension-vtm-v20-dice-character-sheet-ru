@@ -9,7 +9,14 @@ import { SunsetMaterial } from "./sunset/SunsetMaterial";
 import { WalnutMaterial } from "./walnut/WalnutMaterial";
 import { CustomMaterial } from "./custom/CustomMaterial";
 
-export function DiceMaterial({ diceStyle }: { diceStyle: DiceStyle }) {
+export function DiceMaterial({
+  diceStyle,
+  dieId,
+}: {
+  diceStyle: DiceStyle;
+  /** Lets custom dice tell the dice of a roll apart */
+  dieId?: string;
+}) {
   switch (diceStyle) {
     case "GALAXY":
       return <GalaxyMaterial />;
@@ -28,7 +35,7 @@ export function DiceMaterial({ diceStyle }: { diceStyle: DiceStyle }) {
     case "WALNUT":
       return <WalnutMaterial />;
     case "CUSTOM":
-      return <CustomMaterial />;
+      return <CustomMaterial dieId={dieId} />;
     default:
       throw Error(`Dice style ${diceStyle} error: not implemented`);
   }

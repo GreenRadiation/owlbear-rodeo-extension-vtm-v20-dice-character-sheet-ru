@@ -2,16 +2,13 @@
  * Paints the textures of custom dice pixel by pixel.
  * Pure functions on arrays: no DOM, no three.js.
  *
- * Everything is deterministic: the same look gives the same pixels for every
- * player, the patterns use their own hash and not Math.random.
+ * Only what is drawn on the die is painted here: the digits, the icons and
+ * the line around them. The body with its colors and its pattern is made by
+ * the shader (see shader.ts): that way every die of a roll can get its own
+ * take on the pattern without textures of its own.
  */
 
-import {
-  DiceLook,
-  DrawnPattern,
-  isTexturePattern,
-  parseColor,
-} from "../../dice/look";
+import { DiceLook, parseColor } from "../../dice/look";
 
 /** A rectangle of a texture in pixels */
 export interface Rect {
@@ -25,9 +22,6 @@ export interface Rect {
 export interface PaintLayout {
   width: number;
   height: number;
-  /** Where the faces of the die start and end across the texture: from one pole of the die to the other */
-  poleStart: number;
-  poleEnd: number;
   /** Where the ten and the one are */
   ten: Rect;
   one: Rect;
@@ -41,112 +35,8 @@ export interface Shapes {
   outline: Uint8Array;
 }
 
-/** How strong the engraving of the digits is in the normal map */
-const ENGRAVING = 0.25;
-
-function hash(x: number, y: number) {
-  let h = Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263);
-  h = Math.imul(h ^ (h >>> 13), 1274126177);
-  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
-}
-
-function smooth(t: number) {
-  return t * t * (3 - 2 * t);
-}
-
-function smoothstep(from: number, to: number, value: number) {
-  return smooth(Math.min(1, Math.max(0, (value - from) / (to - from))));
-}
-
-/** Smooth noise from 0 to 1 */
-function noise(x: number, y: number) {
-  const x0 = Math.floor(x);
-  const y0 = Math.floor(y);
-  const tx = smooth(x - x0);
-  const ty = smooth(y - y0);
-  const top = hash(x0, y0) * (1 - tx) + hash(x0 + 1, y0) * tx;
-  const bottom = hash(x0, y0 + 1) * (1 - tx) + hash(x0 + 1, y0 + 1) * tx;
-  return top * (1 - ty) + bottom * ty;
-}
-
-/** A few layers of noise on top of each other, from 0 to 1 */
-function clouds(x: number, y: number) {
-  let total = 0;
-  let amplitude = 0.5;
-  for (let octave = 0; octave < 4; octave++) {
-    total += noise(x, y) * amplitude;
-    x *= 2;
-    y *= 2;
-    amplitude /= 2;
-  }
-  return total / 0.9375;
-}
-
-/** Size of the cells the speckles are scattered in, in pixels */
-const SPECKLE_CELL = 28;
-
-function speckles(x: number, y: number) {
-  const cellX = Math.floor(x / SPECKLE_CELL);
-  const cellY = Math.floor(y / SPECKLE_CELL);
-  let best = 0;
-  // A speckle can reach into the cells next to its own
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
-      const cx = cellX + dx;
-      const cy = cellY + dy;
-      const centerX = (cx + hash(cx, cy)) * SPECKLE_CELL;
-      const centerY = (cy + hash(cy + 91, cx - 17)) * SPECKLE_CELL;
-      const radius = 3 + hash(cx + 5, cy + 11) * 7;
-      const distance = Math.hypot(x - centerX, y - centerY);
-      best = Math.max(best, 1 - smoothstep(radius - 1, radius + 1, distance));
-    }
-  }
-  return best;
-}
-
-/**
- * How many times bigger or smaller than usual the details of a pattern are
- * for the scale of a look: a third at 0, the usual size at 0.5, three times at 1.
- */
-export function getDetailSize(patternScale: number) {
-  return Math.pow(3, (patternScale - 0.5) * 2);
-}
-
-/**
- * How much of the second color of the body a pixel gets, 0 to 1.
- * `pole` is where the pixel is between the poles of the die, 0 to 1.
- * `size` is how big the details are compared to their usual size.
- */
-export function getPatternMix(
-  pattern: DrawnPattern,
-  x: number,
-  y: number,
-  pole: number,
-  size = 1
-): number {
-  switch (pattern) {
-    case "solid":
-      return 0;
-    case "gradient":
-      return smooth(Math.min(1, Math.max(0, pole)));
-    case "halves":
-      return smoothstep(0.495, 0.505, pole);
-    case "rings":
-      return smoothstep(
-        0.35,
-        0.65,
-        0.5 + 0.5 * Math.sin((pole * Math.PI * 9) / size)
-      );
-    case "marble": {
-      const turbulence = clouds(x / 120 / size, y / 120 / size);
-      const veins =
-        0.5 + 0.5 * Math.sin(((pole * 2) / size + turbulence * 5) * Math.PI);
-      return smoothstep(0.25, 0.75, veins);
-    }
-    case "speckles":
-      return speckles(x / size, y / size);
-  }
-}
+/** How strong the engraving of the digits is in the normal map at its deepest */
+const ENGRAVING = 0.9;
 
 function inside(rect: Rect, x: number, y: number) {
   return (
@@ -158,7 +48,10 @@ function inside(rect: Rect, x: number, y: number) {
 }
 
 export interface PaintedTextures {
-  /** Color, sRGB */
+  /**
+   * What is painted on the body, sRGB: the color of the digit or of the line
+   * around it, and in the alpha how much of the pixel is painted.
+   */
   albedo: Uint8ClampedArray;
   /** The glow of the digits, sRGB */
   emissive: Uint8ClampedArray;
@@ -166,24 +59,21 @@ export interface PaintedTextures {
    * Red: 255 on the body and 0 on what is painted on it. Tells where light
    * passes through dice of glass and where the lacquer of the body is.
    * Green: roughness. Blue: metalness.
+   * Alpha: 255 where a digit takes the pattern of the body with its second color.
    */
   surface: Uint8ClampedArray;
 }
 
 /**
  * The part of a look that changes what is painted.
- * The rest of a look only sets up the material and needs no new textures.
+ * The rest of a look is handled by the material and the shader and needs no new textures.
  */
 export function getPaintKey(look: DiceLook) {
   return JSON.stringify([
-    look.body,
-    look.body2,
-    look.pattern,
-    look.patternStrength,
-    isTexturePattern(look.pattern) ? 0 : look.patternScale,
     look.digits,
-    look.digits2,
     look.outline,
+    look.outline ? look.outlineWidth : 0,
+    look.font,
     look.glow > 0,
     look.digitsRoughness,
     look.digitsMetalness,
@@ -196,26 +86,18 @@ export function getPaintKey(look: DiceLook) {
   ]);
 }
 
-/**
- * Paint the textures of a look.
- * `patternMap` is the pattern of a look whose pattern comes from a texture:
- * how much of the second color every pixel gets, 0 to 1.
- */
+/** Paint the textures of a look */
 export function paintLook(
   look: DiceLook,
   shapes: Shapes,
-  layout: PaintLayout,
-  patternMap?: Float32Array
+  layout: PaintLayout
 ): PaintedTextures {
   const { width, height } = layout;
   const albedo = new Uint8ClampedArray(width * height * 4);
   const emissive = new Uint8ClampedArray(width * height * 4);
   const surface = new Uint8ClampedArray(width * height * 4);
 
-  const body = parseColor(look.body);
-  const body2 = parseColor(look.body2);
   const digitColor = parseColor(look.digits);
-  const digitColor2 = look.digits2 ? parseColor(look.digits2) : null;
   const tenColor = look.tenColor ? parseColor(look.tenColor) : null;
   const oneColor = look.oneColor ? parseColor(look.oneColor) : null;
   const outlineColor = look.outline ? parseColor(look.outline) : null;
@@ -224,10 +106,6 @@ export function paintLook(
   const digitsRoughness = look.digitsRoughness * 255;
   const digitsMetalness = look.digitsMetalness * 255;
   const glows = look.glow > 0;
-  const poleLength = layout.poleEnd - layout.poleStart;
-  const drawn = isTexturePattern(look.pattern) ? null : look.pattern;
-  const size = getDetailSize(look.patternScale);
-  const color = [0, 0, 0];
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
@@ -235,18 +113,8 @@ export function paintLook(
       const i = pixel * 4;
       const digit = shapes.digits[pixel] / 255;
       const line = outlineColor ? shapes.outline[pixel] / 255 : 0;
-      const mix =
-        (drawn
-          ? getPatternMix(
-              drawn,
-              x,
-              y,
-              (x - layout.poleStart) / poleLength,
-              size
-            )
-          : patternMap
-          ? patternMap[pixel]
-          : 0) * look.patternStrength;
+      // What is painted on the body: the digit and the line around it
+      const paint = Math.max(digit, line);
 
       // The color of the digit this pixel belongs to
       const own =
@@ -257,31 +125,23 @@ export function paintLook(
           : inside(layout.one, x, y)
           ? oneColor
           : null;
-      for (let channel = 0; channel < 3; channel++) {
-        color[channel] = own
-          ? own[channel]
-          : digitColor2
-          ? digitColor[channel] +
-            (digitColor2[channel] - digitColor[channel]) * mix
-          : digitColor[channel];
-      }
+      const color = own || digitColor;
 
       for (let channel = 0; channel < 3; channel++) {
-        let value = body[channel] + (body2[channel] - body[channel]) * mix;
-        if (outlineColor) {
-          value += (outlineColor[channel] - value) * line;
-        }
-        albedo[i + channel] = value + (color[channel] - value) * digit;
+        // The line shows where the digit doesn't cover it
+        albedo[i + channel] =
+          outlineColor && paint > 0
+            ? outlineColor[channel] +
+              (color[channel] - outlineColor[channel]) * (digit / paint)
+            : color[channel];
         emissive[i + channel] = glows ? color[channel] * digit : 0;
       }
-      albedo[i + 3] = 255;
+      albedo[i + 3] = paint * 255;
       emissive[i + 3] = 255;
-      // What is painted on the body: the digit and the line around it
-      const paint = Math.max(digit, line);
       surface[i] = 255 * (1 - paint);
       surface[i + 1] = roughness + (digitsRoughness - roughness) * paint;
       surface[i + 2] = metalness + (digitsMetalness - metalness) * paint;
-      surface[i + 3] = 255;
+      surface[i + 3] = own ? 0 : 255;
     }
   }
 
@@ -319,16 +179,29 @@ export function blur(
   return result;
 }
 
-/** A line a few pixels wide around the digits */
+/** How wide the line around the digits is in pixels for the width of a look */
+export function getOutlineRadius(outlineWidth: number) {
+  return Math.round(2 + outlineWidth * 8);
+}
+
+/** How wide the slope at the edge of a digit is in pixels for the bevel of a look */
+export function getBevelRadius(bevel: number) {
+  return Math.round(1 + bevel * 6);
+}
+
+/** A line around the digits, `radius` pixels wide */
 export function paintOutline(
   digits: Uint8Array,
   width: number,
-  height: number
+  height: number,
+  radius: number
 ): Uint8Array {
-  const spread = blur(digits, width, height, 4);
+  const spread = blur(digits, width, height, radius);
   const outline = new Uint8Array(width * height);
+  // A pixel next to a digit sees about a half of the box of the blur filled
+  const gain = (radius * 2 + 1) / 2;
   for (let i = 0; i < outline.length; i++) {
-    outline[i] = Math.min(255, spread[i] * 4) * (1 - digits[i] / 255);
+    outline[i] = Math.min(255, spread[i] * gain) * (1 - digits[i] / 255);
   }
   return outline;
 }
@@ -337,24 +210,28 @@ export function paintOutline(
  * The normal map that engraves the digits into the die.
  * Has the same shape as the normal maps of the original dice: a digit to the
  * right of a pixel makes its red go up, a digit below makes its green go down.
+ * `radius` is how wide the slope at the edge of a digit is.
  */
 export function paintNormals(
   digits: Uint8Array,
   width: number,
-  height: number
+  height: number,
+  radius = 2
 ): Uint8ClampedArray {
-  const depth = blur(digits, width, height, 2);
+  const depth = blur(digits, width, height, radius);
   const normals = new Uint8ClampedArray(width * height * 4);
   const at = (x: number, y: number) =>
     depth[
       Math.min(height - 1, Math.max(0, y)) * width +
         Math.min(width - 1, Math.max(0, x))
     ];
+  // The slope of the edge: the same depth spread over a wider edge is gentler
+  const slope = (ENGRAVING * 2.5) / (radius * 2 + 1);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const i = (y * width + x) * 4;
-      const dx = (at(x + 1, y) - at(x - 1, y)) * ENGRAVING;
-      const dy = (at(x, y - 1) - at(x, y + 1)) * ENGRAVING;
+      const dx = (at(x + 1, y) - at(x - 1, y)) * slope;
+      const dy = (at(x, y - 1) - at(x, y + 1)) * slope;
       normals[i] = 128 + dx;
       normals[i + 1] = 128 + dy;
       normals[i + 2] =
@@ -368,7 +245,7 @@ export function paintNormals(
 /**
  * Turn the brightness of a texture of the original dice into a pattern:
  * how much of the second color every pixel gets, 0 for the darkest parts of
- * the texture and 1 for the brightest.
+ * the texture and 255 for the brightest, as the pixels of a gray texture.
  *
  * The digits are a part of those textures. `holes` marks the pixels of the
  * digits (anything but 0): they are filled in from what is around them,
@@ -379,7 +256,7 @@ export function buildPatternMap(
   holes: Uint8Array,
   width: number,
   height: number
-): Float32Array {
+): Uint8ClampedArray {
   const map = Float32Array.from(brightness);
   const known = new Uint8Array(width * height);
   let pending: number[] = [];
@@ -445,8 +322,13 @@ export function buildPatternMap(
   const low = sample[Math.floor(sample.length * 0.02)] ?? 0;
   const high = sample[Math.floor(sample.length * 0.98)] ?? 1;
   const range = high - low || 1;
+  const result = new Uint8ClampedArray(width * height * 4);
   for (let i = 0; i < map.length; i++) {
-    map[i] = Math.min(1, Math.max(0, (map[i] - low) / range));
+    const value = Math.min(1, Math.max(0, (map[i] - low) / range)) * 255;
+    result[i * 4] = value;
+    result[i * 4 + 1] = value;
+    result[i * 4 + 2] = value;
+    result[i * 4 + 3] = 255;
   }
-  return map;
+  return result;
 }

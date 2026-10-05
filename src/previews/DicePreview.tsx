@@ -2,7 +2,7 @@ import { styled } from "@mui/material/styles";
 
 import { DiceStyle, ImageDiceStyle } from "../types/DiceStyle";
 import { getCurrentLook, useDiceControlsStore } from "../controls/store";
-import { CustomDicePreview } from "./CustomDicePreview";
+import { CustomDieCanvas } from "./CustomDieCanvas";
 import { DiceType } from "../types/DiceType";
 
 import * as galaxyPreviews from "./galaxy";
@@ -48,7 +48,7 @@ export function DicePreview({ diceType, diceStyle, size }: DiePreviewProps) {
   // The custom dice shown in the interface are always the ones of this player
   const look = useDiceControlsStore(getCurrentLook);
   if (diceStyle === "CUSTOM") {
-    return <CustomDicePreview look={look} size={SIZES[size || "large"]} />;
+    return <CustomDieCanvas look={look} size={SIZES[size || "large"]} />;
   }
   return (
     <PreviewImage

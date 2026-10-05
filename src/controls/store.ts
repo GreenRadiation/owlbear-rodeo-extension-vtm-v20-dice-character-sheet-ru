@@ -11,7 +11,7 @@ import {
   SECOND_LOOK,
   sanitizeLook,
 } from "../dice/look";
-import { ICON_IDS } from "../materials/custom/icons";
+import { LOOK_ASSETS } from "../materials/custom/assets";
 
 /** Who sees a roll: everyone, only the GM or no one but the player who rolls */
 export type Visibility = "ALL" | "GM" | "NONE";
@@ -77,11 +77,11 @@ function loadLooks(): DiceLook[] {
     try {
       return sanitizeLook(
         JSON.parse(localStorage.getItem(key) || "{}"),
-        ICON_IDS,
+        LOOK_ASSETS,
         fallback
       );
     } catch {
-      return sanitizeLook(undefined, ICON_IDS, fallback);
+      return sanitizeLook(undefined, LOOK_ASSETS, fallback);
     }
   });
 }
@@ -112,7 +112,11 @@ export const useDiceControlsStore = create<DiceControlsState>()(
       if (!current) {
         return;
       }
-      const look = sanitizeLook({ ...current, ...update }, ICON_IDS, current);
+      const look = sanitizeLook(
+        { ...current, ...update },
+        LOOK_ASSETS,
+        current
+      );
       saveLook(slot, look);
       set((state) => {
         state.looks[slot] = look;

@@ -54,12 +54,19 @@ export interface DiceLook {
   digits: string;
   /** The second color of the digits: they get the pattern of the body. Can be left out */
   digits2: string;
-  /** The color of a thin line around the digits. Can be left out */
+  /** The color of a line around the digits and how wide it is. The color can be left out */
   outline: string;
+  outlineWidth: number;
   /** How much the digits glow */
   glow: number;
   /** How deep the digits are cut into the die, -1 to 1: below zero they stick out */
   engraving: number;
+  /** How wide the slope at the edge of a digit is */
+  bevel: number;
+  /** Id of the font the digits are written in, an empty string for the digits of the original dice */
+  font: string;
+  /** Every die of a roll gets its own take on the pattern */
+  unique: boolean;
   /** The surface of the digits: paint is rough and not a metal, gold leaf is the opposite */
   digitsRoughness: number;
   digitsMetalness: number;
@@ -140,8 +147,9 @@ export const FINISH_PRESETS: Record<Finish, Surface> = {
     ...PLAIN_SURFACE,
     roughness: 0.3,
     metalness: 0.2,
-    iridescence: 0.6,
-    sheen: 0.5,
+    iridescence: 1,
+    iridescenceHue: 0.4,
+    sheen: 0.3,
   },
   glass: { ...PLAIN_SURFACE, roughness: 0.15, transmission: 1 },
 };
@@ -156,8 +164,12 @@ export const DEFAULT_LOOK: DiceLook = {
   digits: "#f0e6d2",
   digits2: "",
   outline: "",
+  outlineWidth: 0.4,
   glow: 0,
   engraving: 0.5,
+  bevel: 0.4,
+  font: "",
+  unique: false,
   digitsRoughness: 0.8,
   digitsMetalness: 0,
   digitsCoated: true,
@@ -208,16 +220,27 @@ function icon(value: unknown, icons: readonly string[], fallback: string) {
   return icons.includes(value) ? value : "";
 }
 
+/** What this version of the extension has for a look to pick from */
+export interface LookAssets {
+  /** Ids of the icons */
+  icons: readonly string[];
+  /** Ids of the fonts */
+  fonts: readonly string[];
+}
+
 /**
  * Make a valid look out of anything.
- * `icons` are the ids of the icons this version of the extension has.
+ * `assets` are the icons and the fonts this version of the extension has,
+ * ids alone stand for icons.
  * What is missing or wrong is taken from `fallback`.
  */
 export function sanitizeLook(
   value: unknown,
-  icons: readonly string[],
+  assets: readonly string[] | LookAssets,
   fallback: DiceLook = DEFAULT_LOOK
 ): DiceLook {
+  const icons = Array.isArray(assets) ? assets : (assets as LookAssets).icons;
+  const fonts = Array.isArray(assets) ? [] : (assets as LookAssets).fonts;
   const stored = (
     typeof value === "object" && value !== null ? value : {}
   ) as Record<string, unknown>;
@@ -237,8 +260,16 @@ export function sanitizeLook(
     digits: color(stored.digits, d.digits),
     digits2: color(stored.digits2, d.digits2, true),
     outline: color(stored.outline, d.outline, true),
+    outlineWidth: number(stored.outlineWidth, d.outlineWidth),
     glow: number(stored.glow, d.glow),
     engraving: number(stored.engraving, d.engraving, -1),
+    bevel: number(stored.bevel, d.bevel),
+    // A font this version of the extension doesn't have falls back to the original digits
+    font:
+      typeof stored.font === "string" && fonts.includes(stored.font)
+        ? stored.font
+        : "",
+    unique: typeof stored.unique === "boolean" ? stored.unique : d.unique,
     digitsRoughness: number(stored.digitsRoughness, d.digitsRoughness),
     digitsMetalness: number(stored.digitsMetalness, d.digitsMetalness),
     digitsCoated:
@@ -295,9 +326,11 @@ function hsl(h: number, s: number, l: number) {
  * `random` returns numbers from 0 to 1 like Math.random.
  */
 export function randomLook(
-  icons: readonly string[],
+  assets: readonly string[] | LookAssets,
   random: () => number = Math.random
 ): DiceLook {
+  const icons = Array.isArray(assets) ? assets : (assets as LookAssets).icons;
+  const fonts = Array.isArray(assets) ? [] : (assets as LookAssets).fonts;
   const pick = <T>(choices: readonly T[]) =>
     choices[Math.floor(random() * choices.length) % choices.length];
   const hue = random();
@@ -327,6 +360,10 @@ export function randomLook(
       digits: dark ? hsl(hue, 0.2, 0.9) : hsl(hue, 0.4, 0.08),
       digits2: "",
       outline: random() < 0.2 ? (dark ? "#000000" : "#ffffff") : "",
+      outlineWidth: 0.2 + random() * 0.5,
+      bevel: 0.2 + random() * 0.6,
+      font: random() < 0.5 && fonts.length > 0 ? pick(fonts) : "",
+      unique: random() < 0.5,
       glow: random() < 0.25 ? 0.3 + random() * 0.7 : 0,
       engraving: 0.3 + random() * 0.5,
       digitsRoughness: metalDigits ? 0.3 : 0.8,
@@ -341,6 +378,6 @@ export function randomLook(
       sheenColor: hsl(random(), 0.6, 0.7),
       specularColor: "#ffffff",
     },
-    icons
+    assets
   );
 }

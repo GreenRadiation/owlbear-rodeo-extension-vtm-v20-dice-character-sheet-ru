@@ -1,11 +1,14 @@
 import * as THREE from "three";
 
 import { DiceLook, isTexturePattern } from "../../dice/look";
+import { PATTERN_SPACE } from "./shader";
 import {
   PaintLayout,
   Shapes,
   blur,
   buildPatternMap,
+  getBevelRadius,
+  getOutlineRadius,
   getPaintKey,
   paintLook,
   paintNormals,
@@ -38,6 +41,33 @@ const ICON_SIZE = 96;
 const TEN = { x: 1364.5, y: 872, turn: -Math.PI / 2 };
 const ONE = { x: 1523.5, y: 1556.5, turn: Math.PI / 2 };
 
+/**
+ * Where every digit of a D10 is on the atlas, for writing them in another font.
+ * The digits of one column of the strip stand with their top towards the
+ * left of the atlas, the other column towards the right.
+ */
+const DIGITS = [
+  { digit: "0", x: 1364.5, y: 872, turn: -Math.PI / 2 },
+  { digit: "1", x: 1523.5, y: 1556.5, turn: Math.PI / 2 },
+  { digit: "2", x: 1363.5, y: 1267.5, turn: -Math.PI / 2 },
+  { digit: "3", x: 1524, y: 967.5, turn: Math.PI / 2 },
+  { digit: "4", x: 1364.5, y: 685.5, turn: -Math.PI / 2 },
+  { digit: "5", x: 1523, y: 1170, turn: Math.PI / 2 },
+  { digit: "6", x: 1365, y: 1468, turn: -Math.PI / 2 },
+  { digit: "7", x: 1523.5, y: 773.5, turn: Math.PI / 2 },
+  { digit: "8", x: 1364.5, y: 1069.5, turn: -Math.PI / 2 },
+  { digit: "9", x: 1524, y: 1364, turn: Math.PI / 2 },
+];
+/** The lines under the 6 and the 9 that tell them apart, as rectangles of the atlas */
+const UNDERLINES = [
+  { x: 1421, y: 1448, width: 7, height: 40 },
+  { x: 1457, y: 1344, width: 8, height: 40 },
+];
+/** How tall a digit of the original dice is, in pixels of the atlas */
+const DIGIT_HEIGHT = 86;
+/** The square a digit of a font is drawn in */
+const DIGIT_BOX = 128;
+
 /** The square around a digit that is cleared for an icon and gets the color of that digit */
 function getDigitRect(digit: { x: number; y: number }) {
   const size = ICON_SIZE + 4;
@@ -52,12 +82,16 @@ function getDigitRect(digit: { x: number; y: number }) {
 const LAYOUT: PaintLayout = {
   width: CROP.width,
   height: CROP.height,
-  // The faces of a D10 go from x 1218 to x 1675 of the atlas
-  poleStart: 1218 - CROP.x,
-  poleEnd: 1675 - CROP.x,
   ten: getDigitRect(TEN),
   one: getDigitRect(ONE),
 };
+
+if (
+  PATTERN_SPACE.width !== CROP.width ||
+  PATTERN_SPACE.height !== CROP.height
+) {
+  throw Error("The shader draws the pattern in the space of the textures");
+}
 
 function createCanvas(width: number, height: number) {
   const canvas = document.createElement("canvas");
@@ -110,6 +144,59 @@ function stampIcon(
   }
 }
 
+/** Write a digit in a font so that it is as tall as the digits of the original dice */
+function writeDigit(
+  digits: Uint8Array,
+  digit: { digit: string; x: number; y: number; turn: number },
+  family: string
+) {
+  const context = createCanvas(DIGIT_BOX, DIGIT_BOX);
+  // Measure the digit to scale the font to the height of the original digits
+  context.font = `100px "${family}"`;
+  const measured = context.measureText(digit.digit);
+  const measuredHeight =
+    measured.actualBoundingBoxAscent + measured.actualBoundingBoxDescent;
+  const size = measuredHeight > 0 ? (100 * DIGIT_HEIGHT) / measuredHeight : 100;
+  context.font = `${size}px "${family}"`;
+  const metrics = context.measureText(digit.digit);
+  context.textAlign = "center";
+  context.textBaseline = "alphabetic";
+  context.fillStyle = "#fff";
+  context.translate(DIGIT_BOX / 2, DIGIT_BOX / 2);
+  context.rotate(digit.turn);
+  // Put the middle of the shape of the digit, not of its line, at the center
+  context.fillText(
+    digit.digit,
+    0,
+    (metrics.actualBoundingBoxAscent - metrics.actualBoundingBoxDescent) / 2
+  );
+  const pixels = context.getImageData(0, 0, DIGIT_BOX, DIGIT_BOX).data;
+  const left = Math.round(digit.x - CROP.x - DIGIT_BOX / 2);
+  const top = Math.round(digit.y - CROP.y - DIGIT_BOX / 2);
+  for (let y = 0; y < DIGIT_BOX; y++) {
+    for (let x = 0; x < DIGIT_BOX; x++) {
+      const i = (top + y) * CROP.width + left + x;
+      digits[i] = Math.max(digits[i], pixels[(y * DIGIT_BOX + x) * 4 + 3]);
+    }
+  }
+}
+
+/** The digits of a D10 written in a font, 0 to 255 */
+function getFontDigits(family: string) {
+  const digits = new Uint8Array(CROP.width * CROP.height);
+  for (const digit of DIGITS) {
+    writeDigit(digits, digit, family);
+  }
+  for (const line of UNDERLINES) {
+    for (let y = line.y; y < line.y + line.height; y++) {
+      for (let x = line.x; x < line.x + line.width; x++) {
+        digits[(y - CROP.y) * CROP.width + x - CROP.x] = 255;
+      }
+    }
+  }
+  return digits;
+}
+
 /** How much of every pixel of the strip is a digit, 0 to 255: the digits of the original dice */
 let originalDigits: Uint8Array | undefined;
 
@@ -124,7 +211,11 @@ function getOriginalDigits(mask: HTMLImageElement) {
   return originalDigits;
 }
 
-function createTexture(data: Uint8ClampedArray, srgb: boolean) {
+function createTexture(
+  data: Uint8ClampedArray,
+  srgb: boolean,
+  wrap: THREE.Wrapping = THREE.ClampToEdgeWrapping
+) {
   const texture = new THREE.DataTexture(
     data,
     CROP.width,
@@ -132,6 +223,8 @@ function createTexture(data: Uint8ClampedArray, srgb: boolean) {
     THREE.RGBAFormat
   );
   texture.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.LinearSRGBColorSpace;
+  texture.wrapS = wrap;
+  texture.wrapT = wrap;
   // Same as the textures of the original dice: made for a GLTF model
   texture.flipY = false;
   texture.generateMipmaps = true;
@@ -170,7 +263,7 @@ const MAX_LOOKS = 8;
 const MAX_PATTERN_MAPS = 3;
 const shapesCache = new Map<string, ShapeTextures>();
 const lookCache = new Map<string, LookTextures>();
-const patternMapCache = new Map<string, Float32Array>();
+const patternMapCache = new Map<string, THREE.Texture>();
 
 /** Get a value of a cache and mark it as the one used last */
 function touch<T>(cache: Map<string, T>, key: string): T | undefined {
@@ -200,12 +293,15 @@ function remember<T>(
   }
 }
 
-/** The pattern of a texture of the original dice */
-function getPatternMap(
+/**
+ * The pattern of a texture of the original dice as a texture for the shader.
+ * Wraps around: a die of its own moves the pattern.
+ */
+export function getPatternMap(
   pattern: string,
   image: HTMLImageElement,
   mask: HTMLImageElement
-) {
+): THREE.Texture {
   let map = touch(patternMapCache, pattern);
   if (!map) {
     const pixels = getStrip(image);
@@ -222,23 +318,32 @@ function getPatternMap(
     for (let i = 0; i < holes.length; i++) {
       holes[i] = spread[i] > 4 ? 1 : 0;
     }
-    map = buildPatternMap(brightness, holes, CROP.width, CROP.height);
-    remember(patternMapCache, pattern, map, MAX_PATTERN_MAPS);
+    // The shader samples it in the space of the strip, not of the atlas
+    map = createTexture(
+      buildPatternMap(brightness, holes, CROP.width, CROP.height),
+      false,
+      THREE.RepeatWrapping
+    );
+    map.repeat.set(1, 1);
+    map.offset.set(0, 0);
+    remember(patternMapCache, pattern, map, MAX_PATTERN_MAPS, (dropped) =>
+      dropped.dispose()
+    );
   }
   return map;
 }
 
 /**
- * The textures for a look.
+ * The textures for a look: what is painted on the body.
  * The icons are the images of the icons of the look, if it has them.
- * The pattern is the texture of the original dice the look takes its pattern from, if it does.
+ * The font is the family name of the loaded font of the look, if it has one.
  */
 export function getLookTextures(
   look: DiceLook,
   mask: HTMLImageElement,
   tenIcon?: HTMLImageElement,
   oneIcon?: HTMLImageElement,
-  pattern?: HTMLImageElement
+  font?: string
 ): LookTextures {
   const lookKey = getPaintKey(look);
   const cached = touch(lookCache, lookKey);
@@ -246,10 +351,20 @@ export function getLookTextures(
     return cached;
   }
 
-  const shapesKey = `${look.tenIcon}|${look.oneIcon}`;
+  const bevel = getBevelRadius(look.bevel);
+  const outlineRadius = getOutlineRadius(look.outlineWidth);
+  const shapesKey = [
+    look.tenIcon,
+    look.oneIcon,
+    font || "",
+    bevel,
+    outlineRadius,
+  ].join("|");
   let shapes = touch(shapesCache, shapesKey);
   if (!shapes) {
-    const digits = Uint8Array.from(getOriginalDigits(mask));
+    const digits = font
+      ? getFontDigits(font)
+      : Uint8Array.from(getOriginalDigits(mask));
     if (tenIcon) {
       stampIcon(digits, TEN, tenIcon);
     }
@@ -258,9 +373,9 @@ export function getLookTextures(
     }
     shapes = {
       digits,
-      outline: paintOutline(digits, CROP.width, CROP.height),
+      outline: paintOutline(digits, CROP.width, CROP.height, outlineRadius),
       normalMap: createTexture(
-        paintNormals(digits, CROP.width, CROP.height),
+        paintNormals(digits, CROP.width, CROP.height, bevel),
         false
       ),
     };
@@ -269,11 +384,7 @@ export function getLookTextures(
     );
   }
 
-  const patternMap =
-    isTexturePattern(look.pattern) && pattern
-      ? getPatternMap(look.pattern, pattern, mask)
-      : undefined;
-  const painted = paintLook(look, shapes, LAYOUT, patternMap);
+  const painted = paintLook(look, shapes, LAYOUT);
   const textures: LookTextures = {
     map: createTexture(painted.albedo, true),
     emissiveMap: createTexture(painted.emissive, true),

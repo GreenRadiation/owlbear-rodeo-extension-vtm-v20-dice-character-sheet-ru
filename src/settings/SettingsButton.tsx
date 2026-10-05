@@ -25,7 +25,7 @@ import {
   isCustomDiceSet,
   useDiceControlsStore,
 } from "../controls/store";
-import { CustomDicePreview } from "../previews/CustomDicePreview";
+import { CustomDieCanvas } from "../previews/CustomDieCanvas";
 import { DiceLookSettings } from "./DiceLookSettings";
 import { diceSets } from "../sets/diceSets";
 import { PluginGate } from "../plugin/PluginGate";
@@ -304,7 +304,7 @@ function DiceStyleSetting() {
             }}
           >
             {isCustomDiceSet(set) ? (
-              <CustomDicePreview look={looks[getCustomSlot(set)]} size={36} />
+              <CustomDieCanvas look={looks[getCustomSlot(set)]} size={36} />
             ) : (
               <img src={set.previewImage} width={36} height={36} alt="" />
             )}
@@ -435,7 +435,9 @@ function Settings({ onClose }: { onClose: () => void }) {
       </Stack>
       <Divider />
       <DiceStyleSetting />
+      <Divider />
       <Stack gap={1}>
+        <Typography>Символы в счёте и истории</Typography>
         <SymbolSetting
           label="Десятка"
           value={settings.tenSymbol}

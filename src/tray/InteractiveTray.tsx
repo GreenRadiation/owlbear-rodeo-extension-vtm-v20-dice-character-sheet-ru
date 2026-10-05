@@ -19,6 +19,7 @@ import {
   useSettingsStore,
 } from "../settings/store";
 import { TrayCamera } from "./TrayCamera";
+import { ExposeScene } from "../debug/ExposeScene";
 import { PluginGate } from "../plugin/PluginGate";
 import { OwnRollHistoryButton } from "../plugin/RollHistoryButton";
 
@@ -72,6 +73,7 @@ export function InteractiveTray() {
               landscape={isTrayLandscape(settingsWidth)}
             />
             {allowOrbit && <OrbitControls />}
+            {import.meta.env.DEV && <ExposeScene />}
           </AudioListenerProvider>
         </Canvas>
       </TraySuspense>
