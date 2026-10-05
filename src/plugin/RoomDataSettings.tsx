@@ -12,6 +12,7 @@ import { getPluginId } from "./getPluginId";
 import { ROOM_METADATA_LIMIT, byteSize, useRoomMetadata } from "./roomStorage";
 
 const HISTORY_PREFIX = getPluginId("history/");
+const SHEET_PREFIX = getPluginId("sheet/");
 
 /**
  * What the extension keeps in the room for every player and how much space it takes.
@@ -38,16 +39,23 @@ export function RoomDataSettings() {
       names[player.id] = player.name;
     }
     return Object.entries(metadata)
-      .filter(([key]) => key.startsWith(HISTORY_PREFIX))
+      .filter(
+        ([key]) => key.startsWith(HISTORY_PREFIX) || key.startsWith(SHEET_PREFIX)
+      )
       .map(([key, value]) => {
-        const playerId = key.slice(HISTORY_PREFIX.length);
+        const sheet = key.startsWith(SHEET_PREFIX);
+        const playerId = key.slice(
+          (sheet ? SHEET_PREFIX : HISTORY_PREFIX).length
+        );
         return {
           key,
+          kind: sheet ? "Лист" : "История",
           own: playerId === OBR.player.id,
           name: names[playerId] || "игрок не в сети",
           size: byteSize({ [key]: value }),
         };
-      });
+      })
+      .sort((a, b) => a.name.localeCompare(b.name) || a.kind.localeCompare(b.kind));
   }, [metadata, players, name]);
 
   const total = useMemo(() => byteSize(metadata), [metadata]);
@@ -72,7 +80,9 @@ export function RoomDataSettings() {
           justifyContent="space-between"
           gap={1}
         >
-          <Typography noWrap>История: {entry.name}</Typography>
+          <Typography noWrap>
+            {entry.kind}: {entry.name}
+          </Typography>
           <Stack direction="row" alignItems="center" flexShrink={0}>
             <Typography color="text.secondary" noWrap>
               {entry.size} байт
@@ -81,7 +91,7 @@ export function RoomDataSettings() {
               <span>
                 <IconButton
                   size="small"
-                  aria-label={`удалить историю: ${entry.name}`}
+                  aria-label={`удалить: ${entry.kind}, ${entry.name}`}
                   disabled={!entry.own && role !== "GM"}
                   onClick={() =>
                     OBR.room.setMetadata({ [entry.key]: undefined })

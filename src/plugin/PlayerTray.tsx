@@ -44,8 +44,8 @@ export function PlayerTray({
       <Box
         component="div"
         borderRadius={0.5}
-        height="100vh"
-        width={`calc(100vh / 2 * ${trayWidth})`}
+        height="var(--tray-height, 100vh)"
+        width={`calc(var(--tray-height, 100vh) / 2 * ${trayWidth})`}
         maxWidth="100%"
         overflow="hidden"
         position="relative"

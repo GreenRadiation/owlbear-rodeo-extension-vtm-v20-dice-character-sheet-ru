@@ -35,8 +35,9 @@ export function InteractiveTray() {
     <Box
       component="div"
       borderRadius={1}
-      height="100vh"
-      width={`calc(100vh / 2 * ${settingsWidth})`}
+      height="var(--tray-height, 100vh)"
+      width={`calc(var(--tray-height, 100vh) / 2 * ${settingsWidth})`}
+      flexShrink={0}
       overflow="hidden"
       position="relative"
       id="interactive-tray"

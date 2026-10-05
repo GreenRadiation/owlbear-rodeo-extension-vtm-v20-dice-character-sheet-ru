@@ -21,16 +21,46 @@ describe("settings", () => {
 
   it("keeps valid values and clamps the rest", () => {
     const settings = sanitizeSettings({
-      small: { height: 400, width: 1, diceScale: 0.1 },
-      large: { height: 5000, width: 9, diceScale: 1.05 },
+      small: {
+        height: 400,
+        width: 1,
+        diceScale: 0.1,
+        sheetPlacement: "right",
+        sheetHeight: 5,
+        sheetWidth: 300,
+        sheetColumns: 2.4,
+      },
+      large: {
+        height: 5000,
+        width: 9,
+        diceScale: 1.05,
+        sheetPlacement: "sideways",
+        sheetColumns: 7,
+      },
       trayLarge: true,
       previewHeight: 240,
+      sheetOpen: true,
     });
     expect(settings).toEqual({
-      small: { height: 400, width: 1, diceScale: 0.7 },
-      large: { height: 1200, width: 2, diceScale: 1.05 },
+      small: {
+        height: 400,
+        width: 1,
+        diceScale: 0.7,
+        sheetPlacement: "right",
+        sheetHeight: 200,
+        sheetWidth: 300,
+        sheetColumns: 2,
+      },
+      large: {
+        ...defaultSettings.large,
+        height: 1200,
+        width: 2,
+        diceScale: 1.05,
+        sheetColumns: 3,
+      },
       trayLarge: true,
       previewHeight: 240,
+      sheetOpen: true,
     });
   });
 

@@ -14,12 +14,13 @@ import { RollHistorySync } from "../plugin/RollHistorySync";
 import { OwnRollHistoryButton } from "../plugin/RollHistoryButton";
 import { WindowSizeButton } from "../plugin/WindowSizeButton";
 import { SettingsButton } from "../settings/SettingsButton";
+import { SheetButton } from "../sheet/SheetButton";
 
 export function Sidebar() {
   return (
     <SimpleBar
       style={{
-        maxHeight: "100vh",
+        maxHeight: "var(--tray-height, 100vh)",
         width: "60px",
         minWidth: "60px",
         overflowY: "auto",
@@ -31,6 +32,7 @@ export function Sidebar() {
         <PoolControls />
         <Divider flexItem sx={{ mx: 1 }} />
         <DiceHidden />
+        <SheetButton />
         <SettingsButton />
         <PluginGate>
           <OwnRollHistoryButton />

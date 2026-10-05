@@ -2,6 +2,8 @@ import create from "zustand";
 
 import { getPluginId } from "../plugin/getPluginId";
 
+export type SheetPlacement = "below" | "right";
+
 /**
  * The tray has two modes, small and large, that the player switches between
  * with a button: small to look at the map, large to look at the dice.
@@ -17,6 +19,14 @@ export interface TrayMode {
   width: number;
   /** Size of the dice relative to the dice of the original Owlbear Rodeo roller */
   diceScale: number;
+  /** Where the character sheet goes when it is open */
+  sheetPlacement: SheetPlacement;
+  /** Height in pixels of a sheet that is below the tray, it is as wide as the tray */
+  sheetHeight: number;
+  /** Width in pixels of a sheet that is to the right of the tray, it is as high as the tray */
+  sheetWidth: number;
+  /** How many columns the sheet is laid out in, its text scales to fit them */
+  sheetColumns: number;
 }
 
 /**
@@ -31,6 +41,8 @@ export interface Settings {
   trayLarge: boolean;
   /** Height of the previews of the rolls of other players, 0 turns the previews off */
   previewHeight: number;
+  /** If the character sheet is shown */
+  sheetOpen: boolean;
 }
 
 export const MIN_TRAY_HEIGHT = 360;
@@ -46,15 +58,40 @@ export const DEFAULT_TRAY_WIDTH = 1.2;
 /** The choices for the height of the previews, the first one turns them off */
 export const PREVIEW_HEIGHTS = [0, 180, 240, 300, 380, 460, 560, 680];
 
+export const MIN_SHEET_SIZE = 200;
+export const MAX_SHEET_SIZE = 1000;
+export const SHEET_SIZE_STEP = 20;
+export const MIN_SHEET_COLUMNS = 1;
+export const MAX_SHEET_COLUMNS = 3;
+
 export const MIN_DICE_SCALE = 0.7;
 export const MAX_DICE_SCALE = 1.1;
 export const DICE_SCALE_STEP = 0.05;
 
 export const defaultSettings: Settings = {
-  small: { height: 560, width: DEFAULT_TRAY_WIDTH, diceScale: 1 },
-  large: { height: 880, width: DEFAULT_TRAY_WIDTH, diceScale: 1 },
+  // A small tray with the sheet right below it makes a narrow strip at the side of the screen
+  small: {
+    height: 560,
+    width: DEFAULT_TRAY_WIDTH,
+    diceScale: 1,
+    sheetPlacement: "below",
+    sheetHeight: 460,
+    sheetWidth: 420,
+    sheetColumns: 3,
+  },
+  // A large tray takes the whole height of the screen so its sheet goes to the side
+  large: {
+    height: 880,
+    width: DEFAULT_TRAY_WIDTH,
+    diceScale: 1,
+    sheetPlacement: "right",
+    sheetHeight: 460,
+    sheetWidth: 440,
+    sheetColumns: 2,
+  },
   trayLarge: false,
   previewHeight: 300,
+  sheetOpen: false,
 };
 
 const STORAGE_KEY = getPluginId("settings");
@@ -87,6 +124,30 @@ function sanitizeMode(value: unknown, fallback: TrayMode): TrayMode {
       MAX_DICE_SCALE,
       fallback.diceScale
     ),
+    sheetPlacement:
+      stored.sheetPlacement === "below" || stored.sheetPlacement === "right"
+        ? stored.sheetPlacement
+        : fallback.sheetPlacement,
+    sheetHeight: clamp(
+      stored.sheetHeight,
+      MIN_SHEET_SIZE,
+      MAX_SHEET_SIZE,
+      fallback.sheetHeight
+    ),
+    sheetWidth: clamp(
+      stored.sheetWidth,
+      MIN_SHEET_SIZE,
+      MAX_SHEET_SIZE,
+      fallback.sheetWidth
+    ),
+    sheetColumns: Math.round(
+      clamp(
+        stored.sheetColumns,
+        MIN_SHEET_COLUMNS,
+        MAX_SHEET_COLUMNS,
+        fallback.sheetColumns
+      )
+    ),
   };
 }
 
@@ -114,6 +175,8 @@ export function sanitizeSettings(value: unknown): Settings {
     previewHeight: PREVIEW_HEIGHTS.includes(stored.previewHeight as number)
       ? (stored.previewHeight as number)
       : d.previewHeight,
+    sheetOpen:
+      typeof stored.sheetOpen === "boolean" ? stored.sheetOpen : d.sheetOpen,
   };
 }
 
@@ -163,6 +226,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     const settings = {
       ...defaultSettings,
       trayLarge: get().settings.trayLarge,
+      sheetOpen: get().settings.sheetOpen,
     };
     save(settings);
     set({ settings });

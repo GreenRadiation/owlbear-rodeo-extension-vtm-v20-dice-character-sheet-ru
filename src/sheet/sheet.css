@@ -1,0 +1,334 @@
+/*
+ * The character sheet: plain and dense, black on white.
+ * Every size is in em so the sheet scales with the font size
+ * that is picked from its width (see Sheet.tsx).
+ */
+
+.sheet {
+  box-sizing: border-box;
+  background: #fff;
+  color: #000;
+  font-family: Roboto, system-ui, sans-serif;
+  line-height: 1.25;
+  padding: 0.8em;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.sheet *,
+.sheet *::before,
+.sheet *::after {
+  box-sizing: border-box;
+}
+
+.sheet button,
+.sheet input,
+.sheet select,
+.sheet textarea {
+  font: inherit;
+  color: inherit;
+}
+
+.sheet button {
+  cursor: pointer;
+}
+
+.sheet button:disabled {
+  cursor: default;
+}
+
+/* Text fields: only a line under the text */
+.sheet input[type="text"],
+.sheet select {
+  width: 100%;
+  min-width: 0;
+  padding: 0 0.1em;
+  border: none;
+  border-bottom: 1px solid #999;
+  border-radius: 0;
+  background: transparent;
+  outline: none;
+}
+
+.sheet input[type="text"]:focus,
+.sheet select:focus,
+.sheet textarea:focus {
+  border-color: #000;
+}
+
+.sheet input[type="text"]:disabled,
+.sheet select:disabled {
+  border-bottom-color: transparent;
+  opacity: 1;
+  -webkit-text-fill-color: #000;
+}
+
+.sheet-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  margin-bottom: 0.6em;
+}
+
+.sheet-toolbar .sheet-name {
+  flex: 1;
+  font-size: 1.25em;
+  font-weight: 500;
+}
+
+.sheet-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3em;
+  padding: 0.15em 0.5em;
+  border: 1px solid #999;
+  border-radius: 0.3em;
+  background: #fff;
+  white-space: nowrap;
+}
+
+.sheet-button:hover:not(:disabled) {
+  background: #eee;
+}
+
+.sheet-button:disabled {
+  color: #999;
+}
+
+.sheet-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: none;
+  line-height: 1;
+}
+
+.sheet-icon-button:disabled {
+  color: #bbb;
+}
+
+.sheet-icon-button svg {
+  font-size: 1.3em;
+}
+
+.sheet-message {
+  margin-bottom: 0.6em;
+  padding: 0.3em 0.5em;
+  border: 1px solid #c00;
+  color: #c00;
+}
+
+.sheet-profile {
+  display: grid;
+  grid-template-columns: repeat(var(--sheet-columns), minmax(0, 1fr));
+  gap: 0.2em 1em;
+  margin-bottom: 0.4em;
+}
+
+.sheet-field {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4em;
+}
+
+.sheet-field > span {
+  flex-shrink: 0;
+  color: #555;
+}
+
+.sheet-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  margin: 0.7em 0 0.3em;
+  font-size: 1.05em;
+  font-weight: 500;
+  text-align: center;
+}
+
+.sheet-section-title::before,
+.sheet-section-title::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid #000;
+}
+
+.sheet-groups {
+  display: grid;
+  grid-template-columns: repeat(var(--sheet-columns), minmax(0, 1fr));
+  gap: 0.5em 1em;
+  align-items: start;
+}
+
+.sheet-group-title {
+  margin-bottom: 0.15em;
+  font-weight: 500;
+  text-align: center;
+}
+
+.sheet-block + .sheet-block {
+  margin-top: 0.6em;
+}
+
+/* A trait: name, the button that adds its dice to the pool, dots */
+.sheet-row {
+  display: flex;
+  align-items: center;
+  gap: 0.2em;
+  min-height: 1.45em;
+}
+
+.sheet-row-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.1em;
+}
+
+.sheet-row-name > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet-specialty {
+  margin: -0.1em 0 0.15em 0.6em;
+  color: #555;
+  font-size: 0.9em;
+  font-style: italic;
+}
+
+.sheet-arrow {
+  flex-shrink: 0;
+  width: 1.1em;
+  font-size: 0.8em;
+  color: #777;
+}
+
+.sheet-arrow.has-specialty {
+  color: #000;
+}
+
+.sheet-dice {
+  flex-shrink: 0;
+  color: #444;
+}
+
+.sheet-dice:hover:not(:disabled) {
+  color: #b00;
+}
+
+.sheet-dots {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.1em;
+}
+
+.sheet-dot,
+.sheet-square {
+  width: 0.8em;
+  height: 0.8em;
+  padding: 0;
+  border: 1px solid #000;
+  background: #fff;
+  line-height: 1;
+}
+
+.sheet-dot {
+  border-radius: 50%;
+}
+
+.sheet-dot.filled,
+.sheet-square.filled {
+  background: #000;
+}
+
+/* Dots temporarily added by spending blood */
+.sheet-dot.blood {
+  border-color: #c33;
+  background: #f29a9a;
+}
+
+.sheet-dot:disabled,
+.sheet-square:disabled {
+  cursor: default;
+}
+
+.sheet-squares {
+  display: grid;
+  grid-template-columns: repeat(10, 0.95em);
+  gap: 0.15em;
+  justify-content: center;
+  margin: 0.2em 0;
+}
+
+.sheet-squares .sheet-square,
+.sheet-health .sheet-square {
+  width: 0.95em;
+  height: 0.95em;
+}
+
+.sheet-centered {
+  display: flex;
+  justify-content: center;
+}
+
+.sheet-hint {
+  color: #555;
+  font-size: 0.9em;
+  text-align: center;
+}
+
+.sheet-health .sheet-square {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1em;
+  font-weight: 700;
+}
+
+.sheet-health .sheet-square > span {
+  font-size: 0.75em;
+}
+
+.sheet-penalty {
+  flex-shrink: 0;
+  width: 1.6em;
+  color: #555;
+  text-align: right;
+}
+
+.sheet-add {
+  margin-top: 0.2em;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #555;
+  text-decoration: underline dotted;
+}
+
+.sheet-notes textarea {
+  display: block;
+  width: 100%;
+  min-height: 9em;
+  padding: 0.3em;
+  border: 1px solid #999;
+  border-radius: 0;
+  background: #fff;
+  outline: none;
+  resize: vertical;
+}
+
+.sheet-notes-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4em;
+  margin-top: 0.3em;
+}

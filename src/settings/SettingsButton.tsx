@@ -18,12 +18,17 @@ import { RoomDataSettings } from "../plugin/RoomDataSettings";
 import {
   DICE_SCALE_STEP,
   MAX_DICE_SCALE,
+  MAX_SHEET_COLUMNS,
+  MAX_SHEET_SIZE,
   MAX_TRAY_HEIGHT,
   MAX_TRAY_WIDTH,
   MIN_DICE_SCALE,
+  MIN_SHEET_COLUMNS,
+  MIN_SHEET_SIZE,
   MIN_TRAY_HEIGHT,
   MIN_TRAY_WIDTH,
   PREVIEW_HEIGHTS,
+  SHEET_SIZE_STEP,
   TRAY_HEIGHT_STEP,
   TRAY_WIDTH_STEP,
   useSettingsStore,
@@ -160,6 +165,58 @@ function ModeSettings({ large }: { large: boolean }) {
         marks
         onChange={(diceScale) => changeMode(large, { diceScale })}
       />
+      <Typography variant="body2" color="text.secondary" mt={0.5}>
+        Лист персонажа
+      </Typography>
+      <Stack direction="row" gap={0.5}>
+        <Button
+          size="small"
+          sx={{ flex: 1, minWidth: 0, px: 0.5 }}
+          variant={mode.sheetPlacement === "below" ? "contained" : "outlined"}
+          onClick={() => changeMode(large, { sheetPlacement: "below" })}
+        >
+          Снизу
+        </Button>
+        <Button
+          size="small"
+          sx={{ flex: 1, minWidth: 0, px: 0.5 }}
+          variant={mode.sheetPlacement === "right" ? "contained" : "outlined"}
+          onClick={() => changeMode(large, { sheetPlacement: "right" })}
+        >
+          Справа
+        </Button>
+      </Stack>
+      {mode.sheetPlacement === "below" ? (
+        <Setting
+          label="Высота"
+          value={mode.sheetHeight}
+          format={pixels}
+          min={MIN_SHEET_SIZE}
+          max={MAX_SHEET_SIZE}
+          step={SHEET_SIZE_STEP}
+          onChange={(sheetHeight) => changeMode(large, { sheetHeight })}
+        />
+      ) : (
+        <Setting
+          label="Ширина"
+          value={mode.sheetWidth}
+          format={pixels}
+          min={MIN_SHEET_SIZE}
+          max={MAX_SHEET_SIZE}
+          step={SHEET_SIZE_STEP}
+          onChange={(sheetWidth) => changeMode(large, { sheetWidth })}
+        />
+      )}
+      <Setting
+        label="Колонки"
+        value={mode.sheetColumns}
+        format={(value) => `${value}`}
+        min={MIN_SHEET_COLUMNS}
+        max={MAX_SHEET_COLUMNS}
+        step={1}
+        marks
+        onChange={(sheetColumns) => changeMode(large, { sheetColumns })}
+      />
     </Stack>
   );
 }
@@ -185,7 +242,8 @@ function Settings({ onClose }: { onClose: () => void }) {
           У лотка два режима со своими настройками. Переключает их кнопка со
           стрелками в боковой панели или кнопки ниже. Ширина и размер кубов
           действуют со следующего броска, остальные игроки видят твой лоток и
-          кубы такими же.
+          кубы такими же. Лист персонажа снизу занимает ширину лотка, справа
+          высоту лотка; его текст подстраивается под ширину колонок.
         </Typography>
       </Stack>
       <Stack direction="row" gap={2}>
