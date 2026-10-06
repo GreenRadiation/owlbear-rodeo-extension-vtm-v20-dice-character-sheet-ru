@@ -1,11 +1,10 @@
 import OBR from "@owlbear-rodeo/sdk";
 
 import { getPluginId } from "../plugin/getPluginId";
+import { useSettingsStore } from "./store";
 
 /** The window of the editor of custom dice, see editor.tsx */
 export const LOOK_EDITOR_ID = getPluginId("look-editor");
-export const LOOK_EDITOR_WIDTH = 560;
-const LOOK_EDITOR_HEIGHT = 940;
 const MARGIN = 16;
 
 /**
@@ -18,11 +17,13 @@ export async function openLookEditor(slot: number) {
     OBR.viewport.getWidth(),
     OBR.viewport.getHeight(),
   ]);
+  // The size the player dragged the window to last time, as far as the screen allows
+  const { editorWidth, editorHeight } = useSettingsStore.getState().settings;
   await OBR.popover.open({
     id: LOOK_EDITOR_ID,
     url: `${import.meta.env.BASE_URL}editor.html?slot=${slot}`,
-    width: LOOK_EDITOR_WIDTH,
-    height: Math.min(LOOK_EDITOR_HEIGHT, height - MARGIN * 2),
+    width: Math.min(editorWidth, width - MARGIN * 2),
+    height: Math.min(editorHeight, height - MARGIN * 2),
     // At the right edge of the screen, the tray usually sits at the left
     anchorReference: "POSITION",
     anchorPosition: { left: width - MARGIN, top: MARGIN },
@@ -35,4 +36,12 @@ export async function openLookEditor(slot: number) {
 
 export function closeLookEditor() {
   return OBR.popover.close(LOOK_EDITOR_ID);
+}
+
+/** Change the size of the window of the editor, from inside of it */
+export function resizeLookEditor(width: number, height: number) {
+  return Promise.all([
+    OBR.popover.setWidth(LOOK_EDITOR_ID, width),
+    OBR.popover.setHeight(LOOK_EDITOR_ID, height),
+  ]);
 }

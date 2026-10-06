@@ -56,6 +56,8 @@ describe("settings", () => {
       notesHeight: 99999,
       lightTilt: 100,
       lightTurn: 45,
+      editorWidth: 10,
+      editorHeight: 500,
       tenSymbol: "0",
       oneSymbol: "nonsense",
     });
@@ -88,6 +90,8 @@ describe("settings", () => {
       notesHeight: 5000,
       lightTilt: 70,
       lightTurn: 45,
+      editorWidth: 360,
+      editorHeight: 500,
       tenSymbol: "0",
       oneSymbol: defaultSettings.oneSymbol,
     });

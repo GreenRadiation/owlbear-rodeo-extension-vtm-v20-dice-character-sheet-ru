@@ -78,6 +78,9 @@ export interface Settings {
    */
   lightTilt: number;
   lightTurn: number;
+  /** Size in pixels of the window of the editor of custom dice, the player drags its corner */
+  editorWidth: number;
+  editorHeight: number;
   /** How a ten and a one are written, see TEN_SYMBOLS and ONE_SYMBOLS */
   tenSymbol: string;
   oneSymbol: string;
@@ -113,6 +116,10 @@ export const DICE_SCALE_STEP = 0.05;
 const MAX_HIDDEN_PREVIEWS = 30;
 const MAX_NOTES_HEIGHT = 5000;
 export const MAX_LIGHT_TILT = 70;
+export const MIN_EDITOR_WIDTH = 360;
+export const MAX_EDITOR_WIDTH = 1200;
+export const MIN_EDITOR_HEIGHT = 300;
+export const MAX_EDITOR_HEIGHT = 1600;
 export const LIGHT_TILT_STEP = 1;
 export const LIGHT_TURN_STEP = 5;
 /** More than the sheet has sections */
@@ -152,6 +159,8 @@ export const defaultSettings: Settings = {
   notesHeight: 0,
   lightTilt: 0,
   lightTurn: 0,
+  editorWidth: 560,
+  editorHeight: 940,
   tenSymbol: DEFAULT_SYMBOLS.ten,
   oneSymbol: DEFAULT_SYMBOLS.one,
 };
@@ -303,6 +312,22 @@ export function sanitizeSettings(value: unknown): Settings {
       clamp(stored.lightTilt, 0, MAX_LIGHT_TILT, d.lightTilt)
     ),
     lightTurn: Math.round(clamp(stored.lightTurn, 0, 359, d.lightTurn)),
+    editorWidth: Math.round(
+      clamp(
+        stored.editorWidth,
+        MIN_EDITOR_WIDTH,
+        MAX_EDITOR_WIDTH,
+        d.editorWidth
+      )
+    ),
+    editorHeight: Math.round(
+      clamp(
+        stored.editorHeight,
+        MIN_EDITOR_HEIGHT,
+        MAX_EDITOR_HEIGHT,
+        d.editorHeight
+      )
+    ),
     tenSymbol: TEN_SYMBOLS.includes(stored.tenSymbol as string)
       ? (stored.tenSymbol as string)
       : d.tenSymbol,
