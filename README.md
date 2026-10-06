@@ -38,6 +38,7 @@ yarn build
 
 ## Документы
 
+- [docs/GUIDE.md](docs/GUIDE.md) — гайд для игроков: что умеет расширение и как этим пользоваться.
 - [docs/TASKS.md](docs/TASKS.md) — план работ.
 - [CLAUDE.md](CLAUDE.md) — контекст проекта для Claude Code.
 
