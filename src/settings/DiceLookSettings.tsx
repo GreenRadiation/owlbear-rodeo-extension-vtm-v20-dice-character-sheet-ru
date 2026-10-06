@@ -31,6 +31,7 @@ import { DiceLookContext } from "../dice/lookContext";
 import { LOOK_ASSETS } from "../materials/custom/assets";
 import { FONTS } from "../materials/custom/fonts";
 import { ICONS } from "../materials/custom/icons";
+import { downloadText, readText } from "../sheet/files";
 import { Die } from "../types/Die";
 import {
   ONE_FACE,
@@ -75,7 +76,7 @@ const HINTS = {
   patternScale:
     "Размер деталей узора: мелкие кольца или широкие, мелкий мрамор или крупный, мелкие крапинки или большие. Для узоров готовых кубов не действует.",
   patternBalance:
-    "Какого цвета в узоре больше. Посередине узор как есть, левее первого цвета становится больше, а второй остаётся только в самых светлых местах узора, правее наоборот. Размер узора пропорции не меняет, этот ползунок меняет.",
+    "Какого цвета в узоре больше. Посередине узор как есть. Левее второй цвет остаётся только в самых ярких местах узора (у мрамора — редкие тонкие прожилки, у крапинок — мелкие и редкие), на нуле его нет совсем. Правее наоборот: на 100% весь корпус второго цвета. Размер узора пропорции не меняет, этот ползунок меняет.",
   unique:
     "Каждый куб броска получает свой вариант узора, а не один на всех. Узор остаётся тем же, меняется только его расположение. Другие игроки видят те же варианты.",
   digits:
@@ -121,7 +122,9 @@ const HINTS = {
   iridescence:
     "Перелив, как на мыльном пузыре или перламутре: цвет отражения зависит от угла. На 100% перелив виден на всём корпусе.",
   iridescenceHue:
-    "Толщина плёнки перелива, а с ней и цвета, через которые он проходит. Небольшие значения дают золотисто-синий перелив, большие — радужный с частыми полосами.",
+    "Толщина плёнки перелива, а с ней и цвета, через которые он проходит. Это как масляная плёнка на воде: тонкая отливает золотом и синим, толще — зелёным и пурпурным, совсем толстая — частыми радужными полосами. Красный получается на тонкой плёнке, примерно 15–25% при среднем преломлении; шаг в 1% тут важен. Цвет зависит и от угла взгляда, и от цвета корпуса под плёнкой.",
+  iridescenceIor:
+    "Преломление плёнки перелива, от стекла до алмаза. Сдвигает все цвета перелива сразу и делает его резче или мягче; подбирается вместе с толщиной.",
   sheen:
     "Мягкое свечение по краям, как у бархата или шёлка. Светлеет там, где поверхность уходит от зрителя.",
   sheenColor: "Цвет бархатного свечения по краям.",
@@ -358,7 +361,7 @@ function LookSlider({
         value={shown}
         min={min}
         max={1}
-        step={0.05}
+        step={0.01}
         track={min < 0 ? false : "normal"}
         onChange={(_, value) => setDragged(value as number)}
         onChangeCommitted={(_, value) => {
@@ -496,6 +499,21 @@ export function DiceLookSettings({ slot }: { slot: number }) {
   const changeLooks = useDiceControlsStore((state) => state.changeLook);
   const changeLook = (update: Partial<DiceLook>) => changeLooks(slot, update);
 
+  // Looks are saved to files and loaded back as they are, sanitizeLook sorts out the rest
+  const fileRef = useRef<HTMLInputElement>(null);
+  async function handleImport(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+    try {
+      changeLook(JSON.parse(await readText(file)));
+    } catch {
+      // Not a look: nothing changes
+    }
+  }
+
   return (
     <Paper variant="outlined" sx={{ p: 1.5, pt: 1 }}>
       <Stack gap={1}>
@@ -515,6 +533,37 @@ export function DiceLookSettings({ slot }: { slot: number }) {
           >
             Как в начале
           </Button>
+        </Stack>
+        <Stack direction="row" gap={1}>
+          <Button
+            size="small"
+            color="inherit"
+            title="Сохранить этот набор в файл, чтобы поделиться им или вернуться к нему"
+            onClick={() =>
+              downloadText(
+                `dice-look-${slot + 1}.json`,
+                JSON.stringify(look, null, 2),
+                "application/json"
+              )
+            }
+          >
+            Экспорт
+          </Button>
+          <Button
+            size="small"
+            color="inherit"
+            title="Загрузить набор из файла. Заменяет текущий"
+            onClick={() => fileRef.current?.click()}
+          >
+            Импорт
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            hidden
+            onChange={handleImport}
+          />
         </Stack>
         <Typography variant="caption" color="text.secondary">
           Наведи на название настройки, чтобы прочитать, что она делает.
@@ -741,12 +790,20 @@ export function DiceLookSettings({ slot }: { slot: number }) {
           onChange={(iridescence) => changeLook({ iridescence })}
         />
         {look.iridescence > 0 && (
-          <LookSlider
-            label="Оттенок перелива"
-            hint={HINTS.iridescenceHue}
-            value={look.iridescenceHue}
-            onChange={(iridescenceHue) => changeLook({ iridescenceHue })}
-          />
+          <>
+            <LookSlider
+              label="Толщина плёнки"
+              hint={HINTS.iridescenceHue}
+              value={look.iridescenceHue}
+              onChange={(iridescenceHue) => changeLook({ iridescenceHue })}
+            />
+            <LookSlider
+              label="Преломление плёнки"
+              hint={HINTS.iridescenceIor}
+              value={look.iridescenceIor}
+              onChange={(iridescenceIor) => changeLook({ iridescenceIor })}
+            />
+          </>
         )}
         <LookSlider
           label="Бархат"

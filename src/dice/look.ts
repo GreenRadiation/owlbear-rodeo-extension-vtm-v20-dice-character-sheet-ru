@@ -49,7 +49,7 @@ export interface DiceLook {
   patternStrength: number;
   /** How big the details of a computed pattern are, 0.5 is their usual size */
   patternScale: number;
-  /** Which color the pattern leans to: 0 mostly the first, 1 mostly the second, 0.5 as the pattern is */
+  /** Which color the pattern leans to: 0 only the first, 1 only the second, 0.5 as the pattern is */
   patternBalance: number;
 
   /** The color of the digits */
@@ -90,6 +90,8 @@ export interface DiceLook {
   /** A shimmer like on a pearl or a soap bubble and which colors it goes through */
   iridescence: number;
   iridescenceHue: number;
+  /** How much the film of the shimmer bends light, together with the hue picks its colors */
+  iridescenceIor: number;
   /** A soft glow at the edges like on velvet and its color */
   sheen: number;
   sheenColor: string;
@@ -110,6 +112,7 @@ export type Surface = Pick<
   | "clearcoatRoughness"
   | "iridescence"
   | "iridescenceHue"
+  | "iridescenceIor"
   | "sheen"
   | "transmission"
   | "specular"
@@ -133,6 +136,7 @@ const PLAIN_SURFACE: Surface = {
   clearcoatRoughness: 0.3,
   iridescence: 0,
   iridescenceHue: 0.4,
+  iridescenceIor: 0.5,
   sheen: 0,
   transmission: 0,
   // The light of the tray comes from above, right where the camera is: at full
@@ -290,6 +294,7 @@ export function sanitizeLook(
     clearcoatRoughness: number(stored.clearcoatRoughness, d.clearcoatRoughness),
     iridescence: number(stored.iridescence, d.iridescence),
     iridescenceHue: number(stored.iridescenceHue, d.iridescenceHue),
+    iridescenceIor: number(stored.iridescenceIor, d.iridescenceIor),
     sheen: number(stored.sheen, d.sheen),
     sheenColor: color(stored.sheenColor, d.sheenColor),
     transmission: number(stored.transmission, d.transmission),

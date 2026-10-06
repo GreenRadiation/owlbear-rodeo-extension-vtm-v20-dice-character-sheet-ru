@@ -113,8 +113,8 @@ export const DICE_SCALE_STEP = 0.05;
 const MAX_HIDDEN_PREVIEWS = 30;
 const MAX_NOTES_HEIGHT = 5000;
 export const MAX_LIGHT_TILT = 70;
-export const LIGHT_TILT_STEP = 5;
-export const LIGHT_TURN_STEP = 15;
+export const LIGHT_TILT_STEP = 1;
+export const LIGHT_TURN_STEP = 5;
 /** More than the sheet has sections */
 const MAX_FOLDED_SECTIONS = 20;
 

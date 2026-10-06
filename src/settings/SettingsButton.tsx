@@ -1,3 +1,4 @@
+import OBR from "@owlbear-rodeo/sdk";
 import { useState } from "react";
 
 import Button from "@mui/material/Button";
@@ -9,7 +10,6 @@ import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Dialog from "@mui/material/Dialog";
 import Divider from "@mui/material/Divider";
 import IconButton from "@mui/material/IconButton";
-import Slider from "@mui/material/Slider";
 import Stack from "@mui/material/Stack";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
@@ -20,6 +20,8 @@ import ExpandIcon from "@mui/icons-material/ExpandMoreRounded";
 import CollapseIcon from "@mui/icons-material/ExpandLessRounded";
 
 import { SlideTransition } from "../controls/SlideTransition";
+import { Setting } from "./Setting";
+import { openLookEditor } from "./lookEditor";
 import {
   getCustomSlot,
   isCustomDiceSet,
@@ -43,10 +45,7 @@ import {
   MIN_SHEET_SIZE,
   MIN_TRAY_HEIGHT,
   MIN_TRAY_WIDTH,
-  LIGHT_TILT_STEP,
-  LIGHT_TURN_STEP,
   MAX_HISTORY_LENGTH,
-  MAX_LIGHT_TILT,
   MAX_PREVIEW_HEIGHT,
   MIN_HISTORY_LENGTH,
   MIN_PREVIEW_HEIGHT,
@@ -77,62 +76,6 @@ export function SettingsButton() {
         <Settings onClose={() => setOpen(false)} />
       </Dialog>
     </>
-  );
-}
-
-/**
- * A slider with its name and value.
- * Shows the value while dragged but only reports it when released:
- * some settings resize the window and a slider that changes its width
- * while it is dragged jumps around.
- */
-function Setting({
-  label,
-  value,
-  format,
-  min,
-  max,
-  step,
-  marks,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  format: (value: number) => string;
-  min: number;
-  max: number;
-  step: number;
-  marks?: boolean;
-  onChange: (value: number) => void;
-}) {
-  const [dragged, setDragged] = useState<number | null>(null);
-  const shown = dragged === null ? value : dragged;
-
-  return (
-    <Stack>
-      <Stack direction="row" justifyContent="space-between" gap={1}>
-        <Typography noWrap>{label}</Typography>
-        <Typography color="text.secondary" noWrap>
-          {format(shown)}
-        </Typography>
-      </Stack>
-      {/* The thumb of the slider sticks out at the ends, leave room for it */}
-      <Stack px={1.25}>
-        <Slider
-          aria-label={label}
-          value={shown}
-          min={min}
-          max={max}
-          step={step}
-          marks={marks}
-          onChange={(_, value) => setDragged(value as number)}
-          onChangeCommitted={(_, value) => {
-            setDragged(null);
-            onChange(value as number);
-          }}
-        />
-      </Stack>
-    </Stack>
   );
 }
 
@@ -319,53 +262,28 @@ function DiceStyleSetting() {
         настраиваются ниже, у каждого отдельно. Другие игроки видят твои кубы
         такими же.
       </Typography>
-      {isCustomDiceSet(diceSet) && (
-        // The key starts the editor over for the other slot
-        <DiceLookSettings
-          key={getCustomSlot(diceSet)}
-          slot={getCustomSlot(diceSet)}
-        />
-      )}
-    </Stack>
-  );
-}
-
-/**
- * The angle the light falls on the tray from.
- * Personal for now so that the group can pick an angle, meant to become the same for everyone.
- */
-function LightSettings() {
-  const tilt = useSettingsStore((state) => state.settings.lightTilt);
-  const turn = useSettingsStore((state) => state.settings.lightTurn);
-  const changeSettings = useSettingsStore((state) => state.changeSettings);
-
-  return (
-    <Stack gap={0.5} pt={2}>
-      <Typography>Свет в лотке</Typography>
-      <Typography variant="caption" color="text.secondary">
-        Откуда падает свет на кубы. В оригинале он идёт ровно сверху, и блик
-        всегда ложится на середину верхней грани. Пока это личная настройка для
-        подбора угла, потом она станет общей для всех.
-      </Typography>
-      <Setting
-        label="Наклон света"
-        value={tilt}
-        format={(value) => (value === 0 ? "сверху" : `${value}°`)}
-        min={0}
-        max={MAX_LIGHT_TILT}
-        step={LIGHT_TILT_STEP}
-        marks
-        onChange={(lightTilt) => changeSettings({ lightTilt })}
-      />
-      <Setting
-        label="Сторона"
-        value={turn}
-        format={(value) => `${value}°`}
-        min={0}
-        max={360 - LIGHT_TURN_STEP}
-        step={LIGHT_TURN_STEP}
-        onChange={(lightTurn) => changeSettings({ lightTurn })}
-      />
+      {isCustomDiceSet(diceSet) &&
+        (OBR.isAvailable ? (
+          // Inside Owlbear Rodeo the editor gets a window of its own next to the tray
+          <Stack direction="row" alignItems="center" gap={1}>
+            <Button
+              variant="contained"
+              size="small"
+              onClick={() => openLookEditor(getCustomSlot(diceSet))}
+            >
+              Настроить набор {getCustomSlot(diceSet) + 1}
+            </Button>
+            <Typography variant="caption" color="text.secondary">
+              Откроется отдельное окно, кубы можно бросать во время настройки.
+            </Typography>
+          </Stack>
+        ) : (
+          // The key starts the editor over for the other slot
+          <DiceLookSettings
+            key={getCustomSlot(diceSet)}
+            slot={getCustomSlot(diceSet)}
+          />
+        ))}
     </Stack>
   );
 }
@@ -509,7 +427,6 @@ function Settings({ onClose }: { onClose: () => void }) {
           <Collapse in={specialOpen} unmountOnExit>
             <Stack pt={1}>
               <RoomDataSettings />
-              <LightSettings />
             </Stack>
           </Collapse>
         </Stack>

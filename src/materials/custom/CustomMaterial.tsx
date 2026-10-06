@@ -33,8 +33,11 @@ const PATTERN_URLS: Record<TexturePattern, string> = {
 };
 
 /** Thickness in nanometers of the film that makes the shimmer, picks the colors it goes through */
-const MIN_FILM_THICKNESS = 150;
-const MAX_FILM_THICKNESS = 850;
+const MIN_FILM_THICKNESS = 50;
+const MAX_FILM_THICKNESS = 1200;
+/** How much the film bends light, glass to diamond */
+const MIN_FILM_IOR = 1.2;
+const MAX_FILM_IOR = 2.4;
 
 /**
  * Set up a material for a look.
@@ -76,7 +79,8 @@ function applyLook(
   material.clearcoatRoughness = look.clearcoatRoughness;
   material.clearcoatMap = lacquered ? bodyOnly : null;
   material.iridescence = look.iridescence;
-  material.iridescenceIOR = 1.8;
+  material.iridescenceIOR =
+    MIN_FILM_IOR + look.iridescenceIor * (MAX_FILM_IOR - MIN_FILM_IOR);
   material.iridescenceThicknessRange = [
     MIN_FILM_THICKNESS,
     MIN_FILM_THICKNESS +

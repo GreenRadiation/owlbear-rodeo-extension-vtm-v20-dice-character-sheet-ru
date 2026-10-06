@@ -26,8 +26,8 @@ export interface PatternUniforms {
   patternType: { value: number };
   patternStrength: { value: number };
   patternSize: { value: number };
-  /** The pattern is raised to this power: below 1 more of the second color, above 1 less */
-  patternPower: { value: number };
+  /** Added to the threshold of the pattern: above zero less of the second color, below zero more */
+  patternBias: { value: number };
   /** Moves the pattern around for a die of its own, zero for the pattern as it is */
   patternSeed: { value: THREE.Vector2 };
   patternMap: { value: THREE.Texture | null };
@@ -44,17 +44,12 @@ export function createPatternUniforms(): PatternUniforms {
     patternType: { value: 0 },
     patternStrength: { value: 0 },
     patternSize: { value: 1 },
-    patternPower: { value: 1 },
+    patternBias: { value: 0 },
     patternSeed: { value: new THREE.Vector2() },
     patternMap: { value: null },
     usePatternMap: { value: 0 },
     poleRange: { value: new THREE.Vector2(POLE_RANGE.start, POLE_RANGE.end) },
   };
-}
-
-/** The power the pattern is raised to for the balance of a look: 4 at 0, 1 in the middle, 1/4 at 1 */
-export function getPatternPower(patternBalance: number) {
-  return Math.pow(2, (0.5 - patternBalance) * 4);
 }
 
 /** How many times bigger or smaller than usual the details of a pattern are for the scale of a look */
@@ -93,7 +88,7 @@ export function applyPatternUniforms(
     : (DRAWN_PATTERNS as readonly string[]).indexOf(look.pattern);
   uniforms.patternStrength.value = look.patternStrength;
   uniforms.patternSize.value = getDetailSize(look.patternScale);
-  uniforms.patternPower.value = getPatternPower(look.patternBalance);
+  uniforms.patternBias.value = 0.5 - look.patternBalance;
   uniforms.patternSeed.value.set(seed[0], seed[1]);
   uniforms.patternMap.value = textured ? patternMap : null;
   uniforms.usePatternMap.value = textured && patternMap ? 1 : 0;
@@ -107,7 +102,7 @@ uniform float useDigitsColor2;
 uniform int patternType;
 uniform float patternStrength;
 uniform float patternSize;
-uniform float patternPower;
+uniform float patternBias;
 uniform vec2 patternSeed;
 uniform sampler2D patternMap;
 uniform float usePatternMap;
@@ -162,10 +157,11 @@ float v20Pattern(vec2 px) {
   float pole = (px.x - poleRange.x) / (poleRange.y - poleRange.x);
   float result = 0.0;
   if (usePatternMap > 0.5) {
+    // The balance moves the brightness the second color starts at
     vec2 uv = (px + patternSeed) / vec2(${PATTERN_SPACE.width.toFixed(
       1
     )}, ${PATTERN_SPACE.height.toFixed(1)});
-    result = texture2D(patternMap, uv).r;
+    result = smoothstep(2.0 * patternBias, 1.0 + 2.0 * patternBias, texture2D(patternMap, uv).r);
   } else {
     // A die of its own moves the pattern and may turn it around
     vec2 p = (px + patternSeed) / patternSize;
@@ -173,17 +169,19 @@ float v20Pattern(vec2 px) {
     float flip = step(0.5, fract(patternSeed.y / 991.0));
     float turned = mix(pole, 1.0 - pole, flip);
     if (patternType == 1) {
-      result = smoothstep(0.0, 1.0, turned);
+      result = smoothstep(2.0 * patternBias, 1.0 + 2.0 * patternBias, turned);
     } else if (patternType == 2) {
-      result = smoothstep(0.495, 0.505, turned);
+      result = smoothstep(0.495 + patternBias, 0.505 + patternBias, turned);
     } else if (patternType == 3) {
-      result = smoothstep(0.35, 0.65, 0.5 + 0.5 * sin((pole + shift) * 3.14159 * 9.0 / patternSize));
+      float rings = 0.5 + 0.5 * sin((pole + shift) * 3.14159 * 9.0 / patternSize);
+      result = smoothstep(0.35 + 1.5 * patternBias, 0.65 + 1.5 * patternBias, rings);
     } else if (patternType == 4) {
       float turbulence = v20Clouds(p / 120.0);
       float veins = 0.5 + 0.5 * sin(((pole + shift) * 2.0 / patternSize + turbulence * 5.0) * 3.14159);
-      result = smoothstep(0.25, 0.75, veins);
+      result = smoothstep(0.25 + 1.5 * patternBias, 0.75 + 1.5 * patternBias, veins);
     } else if (patternType == 5) {
-      result = v20Speckles(p);
+      // Smaller speckles up to none, or bigger ones up to twice the size
+      result = v20Speckles(p / max(0.001, 1.0 - 2.0 * patternBias));
     }
   }
   return result;
@@ -197,7 +195,7 @@ const MAP_GLSL = /* glsl */ `
   vec2 px = vMapUv * vec2(${PATTERN_SPACE.width.toFixed(
     1
   )}, ${PATTERN_SPACE.height.toFixed(1)});
-  float patternMix = pow(v20Pattern(px), patternPower) * patternStrength;
+  float patternMix = v20Pattern(px) * patternStrength;
   vec3 body = mix(bodyColor, bodyColor2, patternMix);
   // A digit with the second color of the digits takes the pattern of the body
   float patterned = texture2D(roughnessMap, vMapUv).a * useDigitsColor2;

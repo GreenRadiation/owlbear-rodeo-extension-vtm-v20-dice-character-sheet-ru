@@ -153,6 +153,19 @@ export const useDiceControlsStore = create<DiceControlsState>()(
   }))
 );
 
+// Pick up the changes made in another window of the extension, for example the editor of custom dice
+window.addEventListener("storage", (event) => {
+  if (
+    event.key === DICE_SET_STORAGE_KEY ||
+    DICE_LOOK_STORAGE_KEYS.includes(event.key || "")
+  ) {
+    useDiceControlsStore.setState({
+      diceSet: loadDiceSet(),
+      looks: loadLooks(),
+    });
+  }
+});
+
 /** If the dice of a set are the custom dice of the player */
 export function isCustomDiceSet(diceSet: DiceSet) {
   return diceSet.dice[0].style === "CUSTOM";

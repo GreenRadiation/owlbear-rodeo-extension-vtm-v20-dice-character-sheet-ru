@@ -61,6 +61,7 @@ export default defineConfig(({ command }) => ({
         main: resolve(__dirname, "index.html"),
         popover: resolve(__dirname, "popover.html"),
         background: resolve(__dirname, "background.html"),
+        editor: resolve(__dirname, "editor.html"),
       },
     },
   },
