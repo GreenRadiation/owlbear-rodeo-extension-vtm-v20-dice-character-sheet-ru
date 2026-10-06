@@ -79,6 +79,8 @@ export function getPaintKey(look: DiceLook) {
     look.digitsMetalness,
     look.tenColor,
     look.oneColor,
+    look.tenSurface && [look.tenRoughness, look.tenMetalness],
+    look.oneSurface && [look.oneRoughness, look.oneMetalness],
     look.tenIcon,
     look.oneIcon,
     look.roughness,
@@ -105,6 +107,15 @@ export function paintLook(
   const metalness = look.metalness * 255;
   const digitsRoughness = look.digitsRoughness * 255;
   const digitsMetalness = look.digitsMetalness * 255;
+  // The surface of the ten and of the one: their own or the one of the digits
+  const tenRoughness =
+    (look.tenSurface ? look.tenRoughness : look.digitsRoughness) * 255;
+  const tenMetalness =
+    (look.tenSurface ? look.tenMetalness : look.digitsMetalness) * 255;
+  const oneRoughness =
+    (look.oneSurface ? look.oneRoughness : look.digitsRoughness) * 255;
+  const oneMetalness =
+    (look.oneSurface ? look.oneMetalness : look.digitsMetalness) * 255;
   const glows = look.glow > 0;
 
   for (let y = 0; y < height; y++) {
@@ -116,16 +127,21 @@ export function paintLook(
       // What is painted on the body: the digit and the line around it
       const paint = Math.max(digit, line);
 
-      // The color of the digit this pixel belongs to
-      const own =
-        digit === 0
-          ? null
-          : inside(layout.ten, x, y)
-          ? tenColor
-          : inside(layout.one, x, y)
-          ? oneColor
-          : null;
+      // Which digit this pixel belongs to and the color it has
+      const ten = digit > 0 && inside(layout.ten, x, y);
+      const one = digit > 0 && !ten && inside(layout.one, x, y);
+      const own = ten ? tenColor : one ? oneColor : null;
       const color = own || digitColor;
+      const paintRoughness = ten
+        ? tenRoughness
+        : one
+        ? oneRoughness
+        : digitsRoughness;
+      const paintMetalness = ten
+        ? tenMetalness
+        : one
+        ? oneMetalness
+        : digitsMetalness;
 
       for (let channel = 0; channel < 3; channel++) {
         // The line shows where the digit doesn't cover it
@@ -139,8 +155,8 @@ export function paintLook(
       albedo[i + 3] = paint * 255;
       emissive[i + 3] = 255;
       surface[i] = 255 * (1 - paint);
-      surface[i + 1] = roughness + (digitsRoughness - roughness) * paint;
-      surface[i + 2] = metalness + (digitsMetalness - metalness) * paint;
+      surface[i + 1] = roughness + (paintRoughness - roughness) * paint;
+      surface[i + 2] = metalness + (paintMetalness - metalness) * paint;
       surface[i + 3] = own ? 0 : 255;
     }
   }

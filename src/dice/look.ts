@@ -78,6 +78,13 @@ export interface DiceLook {
   /** The color of the ten and of the one, left out for the color of the digits */
   tenColor: string;
   oneColor: string;
+  /** The ten and the one can have a surface of their own instead of the one of the digits */
+  tenSurface: boolean;
+  tenRoughness: number;
+  tenMetalness: number;
+  oneSurface: boolean;
+  oneRoughness: number;
+  oneMetalness: number;
   /** Id of the icon that replaces the "0" and the "1", an empty string for the digit itself */
   tenIcon: string;
   oneIcon: string;
@@ -182,6 +189,12 @@ export const DEFAULT_LOOK: DiceLook = {
   digitsCoated: true,
   tenColor: "#ffd24a",
   oneColor: "",
+  tenSurface: false,
+  tenRoughness: 0.3,
+  tenMetalness: 1,
+  oneSurface: false,
+  oneRoughness: 0.3,
+  oneMetalness: 1,
   tenIcon: "ankh",
   oneIcon: "skull",
   ...FINISH_PRESETS.gloss,
@@ -286,6 +299,14 @@ export function sanitizeLook(
         : d.digitsCoated,
     tenColor: color(stored.tenColor, d.tenColor, true),
     oneColor: color(stored.oneColor, d.oneColor, true),
+    tenSurface:
+      typeof stored.tenSurface === "boolean" ? stored.tenSurface : d.tenSurface,
+    tenRoughness: number(stored.tenRoughness, d.tenRoughness),
+    tenMetalness: number(stored.tenMetalness, d.tenMetalness),
+    oneSurface:
+      typeof stored.oneSurface === "boolean" ? stored.oneSurface : d.oneSurface,
+    oneRoughness: number(stored.oneRoughness, d.oneRoughness),
+    oneMetalness: number(stored.oneMetalness, d.oneMetalness),
     tenIcon: icon(stored.tenIcon, icons, d.tenIcon),
     oneIcon: icon(stored.oneIcon, icons, d.oneIcon),
     roughness: number(stored.roughness, d.roughness),

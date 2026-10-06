@@ -87,7 +87,9 @@ const HINTS = {
     "Линия вокруг каждой цифры и значка. Помогает читать цифры на пёстром корпусе.",
   outlineWidth:
     "Толщина линии вокруг цифр. На максимуме около четверти толщины штриха цифры.",
-  glow: "Цифры светятся своим цветом, как неоновые. На 100% они светятся даже в тени.",
+  glow: "Цифры светятся своим цветом, как неоновые. На 100% они светятся даже в тени. Без галочки свечения нет совсем.",
+  ownSurface:
+    "Свои шероховатость и металличность для этой грани. Так десятку можно сделать золотой или стальной, а остальные цифры оставить обычной краской.",
   engraving:
     "Насколько заметен рельеф на краях цифр. Больше нуля цифры выглядят вдавленными, меньше нуля выступающими. Это игра света на краях, а не настоящая геометрия: форма куба не меняется.",
   bevel:
@@ -659,12 +661,20 @@ export function DiceLookSettings({ slot }: { slot: number }) {
           value={look.font}
           onChange={(font) => changeLook({ font })}
         />
-        <LookSlider
+        <CheckSetting
           label="Свечение"
           hint={HINTS.glow}
-          value={look.glow}
-          onChange={(glow) => changeLook({ glow })}
+          value={look.glow > 0}
+          onChange={(on) => changeLook({ glow: on ? 0.5 : 0 })}
         />
+        {look.glow > 0 && (
+          <LookSlider
+            label="Сила свечения"
+            hint={HINTS.glow}
+            value={look.glow}
+            onChange={(glow) => changeLook({ glow: Math.max(0.01, glow) })}
+          />
+        )}
         <LookSlider
           label="Глубина"
           hint={HINTS.engraving}
@@ -712,6 +722,28 @@ export function DiceLookSettings({ slot }: { slot: number }) {
           value={look.tenIcon}
           onChange={(tenIcon) => changeLook({ tenIcon })}
         />
+        <CheckSetting
+          label="Свой материал"
+          hint={HINTS.ownSurface}
+          value={look.tenSurface}
+          onChange={(tenSurface) => changeLook({ tenSurface })}
+        />
+        {look.tenSurface && (
+          <>
+            <LookSlider
+              label="Шероховатость"
+              hint={HINTS.digitsRoughness}
+              value={look.tenRoughness}
+              onChange={(tenRoughness) => changeLook({ tenRoughness })}
+            />
+            <LookSlider
+              label="Металличность"
+              hint={HINTS.digitsMetalness}
+              value={look.tenMetalness}
+              onChange={(tenMetalness) => changeLook({ tenMetalness })}
+            />
+          </>
+        )}
 
         <Heading>Единица</Heading>
         <ColorSetting
@@ -728,6 +760,28 @@ export function DiceLookSettings({ slot }: { slot: number }) {
           value={look.oneIcon}
           onChange={(oneIcon) => changeLook({ oneIcon })}
         />
+        <CheckSetting
+          label="Свой материал"
+          hint={HINTS.ownSurface}
+          value={look.oneSurface}
+          onChange={(oneSurface) => changeLook({ oneSurface })}
+        />
+        {look.oneSurface && (
+          <>
+            <LookSlider
+              label="Шероховатость"
+              hint={HINTS.digitsRoughness}
+              value={look.oneRoughness}
+              onChange={(oneRoughness) => changeLook({ oneRoughness })}
+            />
+            <LookSlider
+              label="Металличность"
+              hint={HINTS.digitsMetalness}
+              value={look.oneMetalness}
+              onChange={(oneMetalness) => changeLook({ oneMetalness })}
+            />
+          </>
+        )}
 
         <Heading>Поверхность корпуса</Heading>
         <Choices

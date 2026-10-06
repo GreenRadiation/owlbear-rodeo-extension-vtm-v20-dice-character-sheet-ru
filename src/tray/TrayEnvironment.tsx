@@ -5,27 +5,29 @@ import { Environment } from "@react-three/drei";
 import { RGBELoader } from "three-stdlib";
 
 import environment from "../environment.hdr";
-import { useSettingsStore } from "../settings/store";
 
 /**
  * The light of the tray and of every preview of dice: the environment of the
  * original roller, turned so that its light doesn't fall straight from above.
  * With the light right above the tray and the camera right above it too, the
  * reflection of the light sits in the middle of the top face of every die.
- * The turn is a personal setting while the group is picking an angle, it is
- * meant to become the same for everyone.
+ * The angle was picked by the author of the extension in a real tray
+ * (2026-10-06) and is the same for everyone.
  */
+
+/** How far from straight above the light comes, in degrees */
+const LIGHT_TILT = 29;
+/** From which side, in degrees clockwise from the top of an upright tray */
+const LIGHT_TURN = 45;
 export function TrayEnvironment() {
-  const tilt = useSettingsStore((state) => state.settings.lightTilt);
-  const turn = useSettingsStore((state) => state.settings.lightTurn);
   const source = useLoader(RGBELoader, environment, (loader) =>
     loader.setDataType(THREE.FloatType)
   ) as THREE.DataTexture;
   const map = useMemo(() => {
     // The loader gives a plain texture, the panorama has to be read as one
     source.mapping = THREE.EquirectangularReflectionMapping;
-    return getTiltedEnvironment(source, tilt, turn);
-  }, [source, tilt, turn]);
+    return getTiltedEnvironment(source, LIGHT_TILT, LIGHT_TURN);
+  }, [source]);
   // A canvas that only draws on demand has to be told the light changed
   const invalidate = useThree((state) => state.invalidate);
   useEffect(() => {

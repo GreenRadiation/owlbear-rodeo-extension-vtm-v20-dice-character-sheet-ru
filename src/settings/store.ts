@@ -72,12 +72,6 @@ export interface Settings {
   foldedSections: string[];
   /** Height in pixels the player dragged the field of the notes to, 0 for the default height */
   notesHeight: number;
-  /**
-   * How far from straight above the light of the tray comes, in degrees, and
-   * from which side. Personal while the group picks an angle, see TrayEnvironment.
-   */
-  lightTilt: number;
-  lightTurn: number;
   /** Size in pixels of the window of the editor of custom dice, the player drags its corner */
   editorWidth: number;
   editorHeight: number;
@@ -115,13 +109,10 @@ export const DICE_SCALE_STEP = 0.05;
 /** The most players that can be kept out of the previews */
 const MAX_HIDDEN_PREVIEWS = 30;
 const MAX_NOTES_HEIGHT = 5000;
-export const MAX_LIGHT_TILT = 70;
 export const MIN_EDITOR_WIDTH = 360;
 export const MAX_EDITOR_WIDTH = 1200;
 export const MIN_EDITOR_HEIGHT = 300;
 export const MAX_EDITOR_HEIGHT = 1600;
-export const LIGHT_TILT_STEP = 1;
-export const LIGHT_TURN_STEP = 5;
 /** More than the sheet has sections */
 const MAX_FOLDED_SECTIONS = 20;
 
@@ -157,8 +148,6 @@ export const defaultSettings: Settings = {
   collapsed: false,
   foldedSections: [],
   notesHeight: 0,
-  lightTilt: 0,
-  lightTurn: 0,
   editorWidth: 560,
   editorHeight: 940,
   tenSymbol: DEFAULT_SYMBOLS.ten,
@@ -308,10 +297,6 @@ export function sanitizeSettings(value: unknown): Settings {
     notesHeight: Math.round(
       clamp(stored.notesHeight, 0, MAX_NOTES_HEIGHT, d.notesHeight)
     ),
-    lightTilt: Math.round(
-      clamp(stored.lightTilt, 0, MAX_LIGHT_TILT, d.lightTilt)
-    ),
-    lightTurn: Math.round(clamp(stored.lightTurn, 0, 359, d.lightTurn)),
     editorWidth: Math.round(
       clamp(
         stored.editorWidth,

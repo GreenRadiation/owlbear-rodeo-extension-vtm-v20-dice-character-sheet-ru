@@ -73,6 +73,35 @@ describe("paintLook", () => {
     expect(pixel(golden, 3)).toEqual([0, 51, 255, 255]);
   });
 
+  it("gives the ten and the one a surface of their own when asked", () => {
+    const plain = paintLook(look, digits, layout).surface;
+    expect(pixel(plain, 1)).toEqual([0, 204, 0, 0]);
+    const golden = paintLook(
+      {
+        ...look,
+        tenSurface: true,
+        tenRoughness: 0.2,
+        tenMetalness: 1,
+        oneSurface: true,
+        oneRoughness: 0.6,
+        oneMetalness: 0.5,
+      },
+      digits,
+      layout
+    ).surface;
+    expect(pixel(golden, 1)).toEqual([0, 51, 255, 0]);
+    expect(pixel(golden, 2)).toEqual([0, 153, 128, 255]);
+    // The other digits keep the surface of the digits
+    expect(pixel(golden, 3)).toEqual([0, 204, 0, 255]);
+    // Turned off, the values don't matter
+    expect(
+      getPaintKey({ ...DEFAULT_LOOK, tenSurface: false, tenRoughness: 0.1 })
+    ).toBe(getPaintKey(DEFAULT_LOOK));
+    expect(getPaintKey({ ...DEFAULT_LOOK, tenSurface: true })).not.toBe(
+      getPaintKey(DEFAULT_LOOK)
+    );
+  });
+
   it("marks the digits that can take the pattern of the body", () => {
     const { surface } = paintLook(look, digits, layout);
     // The ten has a color of its own and keeps it

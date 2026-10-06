@@ -3,7 +3,6 @@ import React, { useRef } from "react";
 import ReactDOM from "react-dom/client";
 
 import CssBaseline from "@mui/material/CssBaseline";
-import Divider from "@mui/material/Divider";
 import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
@@ -16,7 +15,6 @@ import { GlobalStyles } from "./GlobalStyles";
 import { PluginGate } from "./plugin/PluginGate";
 import { PluginThemeProvider } from "./plugin/PluginThemeProvider";
 import { DiceLookSettings } from "./settings/DiceLookSettings";
-import { LightSettings } from "./settings/LightSettings";
 import { closeLookEditor, resizeLookEditor } from "./settings/lookEditor";
 import {
   MAX_EDITOR_HEIGHT,
@@ -130,8 +128,6 @@ function EditorWindow() {
         )}
       </Stack>
       <DiceLookSettings slot={slot} />
-      <Divider />
-      <LightSettings />
     </Stack>
   );
 }
