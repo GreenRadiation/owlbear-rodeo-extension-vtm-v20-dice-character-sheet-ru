@@ -54,6 +54,8 @@ describe("settings", () => {
       collapsed: true,
       foldedSections: ["status", 5],
       notesHeight: 99999,
+      lightTilt: 100,
+      lightTurn: 45,
       tenSymbol: "0",
       oneSymbol: "nonsense",
     });
@@ -84,6 +86,8 @@ describe("settings", () => {
       collapsed: true,
       foldedSections: ["status"],
       notesHeight: 5000,
+      lightTilt: 70,
+      lightTurn: 45,
       tenSymbol: "0",
       oneSymbol: defaultSettings.oneSymbol,
     });

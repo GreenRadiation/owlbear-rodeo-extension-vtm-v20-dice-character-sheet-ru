@@ -29,7 +29,11 @@ export function PreviewDiceRoll() {
   const diceSet = useDiceControlsStore((state) => state.diceSet);
   const look = useDiceControlsStore(getCurrentLook);
 
-  const dice = useMemo(() => getDiceToRoll(pool, diceSet), [pool, diceSet]);
+  const poolSeed = useDiceControlsStore((state) => state.poolSeed);
+  const dice = useMemo(
+    () => getDiceToRoll(pool, diceSet, poolSeed),
+    [pool, diceSet, poolSeed]
+  );
 
   const { diceScale, width } = useSettingsStore((state) =>
     getTrayMode(state.settings)

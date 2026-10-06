@@ -72,6 +72,12 @@ export interface Settings {
   foldedSections: string[];
   /** Height in pixels the player dragged the field of the notes to, 0 for the default height */
   notesHeight: number;
+  /**
+   * How far from straight above the light of the tray comes, in degrees, and
+   * from which side. Personal while the group picks an angle, see TrayEnvironment.
+   */
+  lightTilt: number;
+  lightTurn: number;
   /** How a ten and a one are written, see TEN_SYMBOLS and ONE_SYMBOLS */
   tenSymbol: string;
   oneSymbol: string;
@@ -106,6 +112,9 @@ export const DICE_SCALE_STEP = 0.05;
 /** The most players that can be kept out of the previews */
 const MAX_HIDDEN_PREVIEWS = 30;
 const MAX_NOTES_HEIGHT = 5000;
+export const MAX_LIGHT_TILT = 70;
+export const LIGHT_TILT_STEP = 5;
+export const LIGHT_TURN_STEP = 15;
 /** More than the sheet has sections */
 const MAX_FOLDED_SECTIONS = 20;
 
@@ -141,6 +150,8 @@ export const defaultSettings: Settings = {
   collapsed: false,
   foldedSections: [],
   notesHeight: 0,
+  lightTilt: 0,
+  lightTurn: 0,
   tenSymbol: DEFAULT_SYMBOLS.ten,
   oneSymbol: DEFAULT_SYMBOLS.one,
 };
@@ -288,6 +299,10 @@ export function sanitizeSettings(value: unknown): Settings {
     notesHeight: Math.round(
       clamp(stored.notesHeight, 0, MAX_NOTES_HEIGHT, d.notesHeight)
     ),
+    lightTilt: Math.round(
+      clamp(stored.lightTilt, 0, MAX_LIGHT_TILT, d.lightTilt)
+    ),
+    lightTurn: Math.round(clamp(stored.lightTurn, 0, 359, d.lightTurn)),
     tenSymbol: TEN_SYMBOLS.includes(stored.tenSymbol as string)
       ? (stored.tenSymbol as string)
       : d.tenSymbol,

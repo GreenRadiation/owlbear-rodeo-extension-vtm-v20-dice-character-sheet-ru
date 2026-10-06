@@ -1,20 +1,19 @@
 import { Suspense, useMemo } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
-import { Environment } from "@react-three/drei";
+import { TrayEnvironment } from "../tray/TrayEnvironment";
 
 import Box from "@mui/material/Box";
 
-import environment from "../environment.hdr";
 import { Dice } from "../dice/Dice";
 import { DiceLook } from "../dice/look";
 import { DiceLookContext } from "../dice/lookContext";
 import { Die } from "../types/Die";
 import { CustomDicePreview } from "./CustomDicePreview";
 
-/** Where the "0" is on the mesh of a D10 and the turn that puts it upright, see meshes/rounded/D10.tsx */
-const TEN_FACE = new THREE.Vector3(0.4, 0.42, -0.56).normalize();
-const TEN_TWIST = -Math.PI / 2;
+import { TEN_FACE, TEN_UP, getFacingQuaternion } from "./facing";
+
+/** A little from above, as the tray is seen */
 const TOWARDS_CAMERA = new THREE.Vector3(0, 0.45, 1).normalize();
 
 const PREVIEW_DIE: Die = { id: "preview-button", style: "CUSTOM", type: "D10" };
@@ -33,15 +32,10 @@ export function CustomDieCanvas({
   /** Width and height in pixels */
   size: number;
 }) {
-  const facing = useMemo(() => {
-    const toCamera = new THREE.Quaternion().setFromUnitVectors(
-      TEN_FACE,
-      TOWARDS_CAMERA
-    );
-    return new THREE.Quaternion()
-      .setFromAxisAngle(TOWARDS_CAMERA, TEN_TWIST)
-      .multiply(toCamera);
-  }, []);
+  const facing = useMemo(
+    () => getFacingQuaternion(TEN_FACE, TOWARDS_CAMERA, TEN_UP),
+    []
+  );
 
   return (
     <Box
@@ -69,7 +63,7 @@ export function CustomDieCanvas({
           style={{ background: "transparent" }}
         >
           <Suspense fallback={null}>
-            <Environment files={environment} />
+            <TrayEnvironment />
             <DiceLookContext.Provider value={look}>
               <group quaternion={facing}>
                 <Dice die={PREVIEW_DIE} />

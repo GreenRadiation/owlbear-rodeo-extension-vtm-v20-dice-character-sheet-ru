@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { ContactShadows, Environment, OrbitControls } from "@react-three/drei";
+import { ContactShadows, OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
+import { TrayEnvironment } from "../tray/TrayEnvironment";
 import { Player } from "@owlbear-rodeo/sdk";
 
 import Box from "@mui/material/Box";
@@ -16,7 +17,6 @@ import GmIcon from "@mui/icons-material/AdminPanelSettingsRounded";
 import PreviewOnIcon from "@mui/icons-material/PictureInPictureAltRounded";
 import PreviewOffIcon from "@mui/icons-material/CancelPresentationRounded";
 
-import environment from "../environment.hdr";
 import { GradientOverlay } from "../controls/GradientOverlay";
 import { RollResult, WIDE_RESULT_WIDTH } from "../controls/RollResult";
 import { usePlayerDice } from "./usePlayerDice";
@@ -93,7 +93,7 @@ export function PlayerTray({
         <TraySuspense>
           <Canvas frameloop="demand">
             <AudioListenerProvider>
-              <Environment files={environment} />
+              <TrayEnvironment />
               <ContactShadows
                 resolution={256}
                 scale={[trayWidth, 2]}

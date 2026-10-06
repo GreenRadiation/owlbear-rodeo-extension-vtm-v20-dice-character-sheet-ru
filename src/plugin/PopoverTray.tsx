@@ -1,5 +1,5 @@
-import { Environment } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
+import { TrayEnvironment } from "../tray/TrayEnvironment";
 import { Player } from "@owlbear-rodeo/sdk";
 import { useEffect, useState } from "react";
 
@@ -12,7 +12,6 @@ import IconButton from "@mui/material/IconButton";
 
 import CloseIcon from "@mui/icons-material/CloseRounded";
 
-import environment from "../environment.hdr";
 import { usePlayerDice } from "./usePlayerDice";
 import { PlayerDiceRoll } from "./PlayerDiceRoll";
 import { AudioListenerProvider } from "../audio/AudioListenerProvider";
@@ -64,8 +63,13 @@ export function PopoverTray({
   /** Tell that the player has started a roll */
   onRollStart: (connectionId: string) => void;
 }) {
-  const { diceRoll, rollThrows, outcome, finishedRolling, finishedRollTransforms } =
-    usePlayerDice(player);
+  const {
+    diceRoll,
+    rollThrows,
+    outcome,
+    finishedRolling,
+    finishedRollTransforms,
+  } = usePlayerDice(player);
 
   const theme = useTheme();
   const symbols = useSymbols();
@@ -154,7 +158,7 @@ export function PopoverTray({
           <TraySuspense>
             <Canvas frameloop="demand">
               <AudioListenerProvider volume={0.25}>
-                <Environment files={environment} />
+                <TrayEnvironment />
                 <Tray widthScale={trayWidth} />
                 {live ? (
                   <PlayerDiceRoll player={player} />

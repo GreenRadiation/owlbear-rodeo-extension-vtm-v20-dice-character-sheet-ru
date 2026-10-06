@@ -33,6 +33,8 @@ interface DiceControlsState {
   looks: DiceLook[];
   /** How many dice will be rolled */
   pool: number;
+  /** Start of the ids of the dice of this pool, new with every pool */
+  poolSeed: string;
   /** Who sees the next roll */
   visibility: Visibility;
   diceRollPressTime: number | null;
@@ -99,6 +101,7 @@ export const useDiceControlsStore = create<DiceControlsState>()(
     diceSet: loadDiceSet(),
     looks: loadLooks(),
     pool: 0,
+    poolSeed: generateDiceId(),
     visibility: "ALL",
     diceRollPressTime: null,
     changeDiceSet(diceSet) {
@@ -125,6 +128,7 @@ export const useDiceControlsStore = create<DiceControlsState>()(
     resetPool() {
       set((state) => {
         state.pool = 0;
+        state.poolSeed = generateDiceId();
       });
     },
     addToPool(count) {
@@ -164,12 +168,20 @@ export function getCurrentLook(state: DiceControlsState): DiceLook {
   return state.looks[getCustomSlot(state.diceSet)];
 }
 
-/** Generate new dice for a pool using the die of the given set */
-export function getDiceToRoll(pool: number, diceSet: DiceSet): Die[] {
+/**
+ * The dice of a pool using the die of the given set.
+ * With the seed of the pool the dice keep their ids while dice are added to
+ * the pool, and a custom die with a pattern of its own keeps that pattern.
+ */
+export function getDiceToRoll(
+  pool: number,
+  diceSet: DiceSet,
+  seed = generateDiceId()
+): Die[] {
   const { style, type } = diceSet.dice[0];
   const dice: Die[] = [];
   for (let i = 0; i < pool; i++) {
-    dice.push({ id: generateDiceId(), style, type });
+    dice.push({ id: `${seed}-${i}`, style, type });
   }
   return dice;
 }

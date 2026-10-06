@@ -26,6 +26,8 @@ export interface PatternUniforms {
   patternType: { value: number };
   patternStrength: { value: number };
   patternSize: { value: number };
+  /** The pattern is raised to this power: below 1 more of the second color, above 1 less */
+  patternPower: { value: number };
   /** Moves the pattern around for a die of its own, zero for the pattern as it is */
   patternSeed: { value: THREE.Vector2 };
   patternMap: { value: THREE.Texture | null };
@@ -42,11 +44,17 @@ export function createPatternUniforms(): PatternUniforms {
     patternType: { value: 0 },
     patternStrength: { value: 0 },
     patternSize: { value: 1 },
+    patternPower: { value: 1 },
     patternSeed: { value: new THREE.Vector2() },
     patternMap: { value: null },
     usePatternMap: { value: 0 },
     poleRange: { value: new THREE.Vector2(POLE_RANGE.start, POLE_RANGE.end) },
   };
+}
+
+/** The power the pattern is raised to for the balance of a look: 4 at 0, 1 in the middle, 1/4 at 1 */
+export function getPatternPower(patternBalance: number) {
+  return Math.pow(2, (0.5 - patternBalance) * 4);
 }
 
 /** How many times bigger or smaller than usual the details of a pattern are for the scale of a look */
@@ -85,6 +93,7 @@ export function applyPatternUniforms(
     : (DRAWN_PATTERNS as readonly string[]).indexOf(look.pattern);
   uniforms.patternStrength.value = look.patternStrength;
   uniforms.patternSize.value = getDetailSize(look.patternScale);
+  uniforms.patternPower.value = getPatternPower(look.patternBalance);
   uniforms.patternSeed.value.set(seed[0], seed[1]);
   uniforms.patternMap.value = textured ? patternMap : null;
   uniforms.usePatternMap.value = textured && patternMap ? 1 : 0;
@@ -98,6 +107,7 @@ uniform float useDigitsColor2;
 uniform int patternType;
 uniform float patternStrength;
 uniform float patternSize;
+uniform float patternPower;
 uniform vec2 patternSeed;
 uniform sampler2D patternMap;
 uniform float usePatternMap;
@@ -150,35 +160,33 @@ float v20Speckles(vec2 p) {
 // How much of the second color a pixel of the body gets
 float v20Pattern(vec2 px) {
   float pole = (px.x - poleRange.x) / (poleRange.y - poleRange.x);
+  float result = 0.0;
   if (usePatternMap > 0.5) {
     vec2 uv = (px + patternSeed) / vec2(${PATTERN_SPACE.width.toFixed(
       1
     )}, ${PATTERN_SPACE.height.toFixed(1)});
-    return texture2D(patternMap, uv).r;
+    result = texture2D(patternMap, uv).r;
+  } else {
+    // A die of its own moves the pattern and may turn it around
+    vec2 p = (px + patternSeed) / patternSize;
+    float shift = fract(patternSeed.x / 997.0);
+    float flip = step(0.5, fract(patternSeed.y / 991.0));
+    float turned = mix(pole, 1.0 - pole, flip);
+    if (patternType == 1) {
+      result = smoothstep(0.0, 1.0, turned);
+    } else if (patternType == 2) {
+      result = smoothstep(0.495, 0.505, turned);
+    } else if (patternType == 3) {
+      result = smoothstep(0.35, 0.65, 0.5 + 0.5 * sin((pole + shift) * 3.14159 * 9.0 / patternSize));
+    } else if (patternType == 4) {
+      float turbulence = v20Clouds(p / 120.0);
+      float veins = 0.5 + 0.5 * sin(((pole + shift) * 2.0 / patternSize + turbulence * 5.0) * 3.14159);
+      result = smoothstep(0.25, 0.75, veins);
+    } else if (patternType == 5) {
+      result = v20Speckles(p);
+    }
   }
-  // A die of its own moves the pattern and may turn it around
-  vec2 p = (px + patternSeed) / patternSize;
-  float shift = fract(patternSeed.x / 997.0);
-  float flip = step(0.5, fract(patternSeed.y / 991.0));
-  float turned = mix(pole, 1.0 - pole, flip);
-  if (patternType == 1) {
-    return smoothstep(0.0, 1.0, turned);
-  }
-  if (patternType == 2) {
-    return smoothstep(0.495, 0.505, turned);
-  }
-  if (patternType == 3) {
-    return smoothstep(0.35, 0.65, 0.5 + 0.5 * sin((pole + shift) * 3.14159 * 9.0 / patternSize));
-  }
-  if (patternType == 4) {
-    float turbulence = v20Clouds(p / 120.0);
-    float veins = 0.5 + 0.5 * sin(((pole + shift) * 2.0 / patternSize + turbulence * 5.0) * 3.14159);
-    return smoothstep(0.25, 0.75, veins);
-  }
-  if (patternType == 5) {
-    return v20Speckles(p);
-  }
-  return 0.0;
+  return result;
 }
 `;
 
@@ -189,7 +197,7 @@ const MAP_GLSL = /* glsl */ `
   vec2 px = vMapUv * vec2(${PATTERN_SPACE.width.toFixed(
     1
   )}, ${PATTERN_SPACE.height.toFixed(1)});
-  float patternMix = v20Pattern(px) * patternStrength;
+  float patternMix = pow(v20Pattern(px), patternPower) * patternStrength;
   vec3 body = mix(bodyColor, bodyColor2, patternMix);
   // A digit with the second color of the digits takes the pattern of the body
   float patterned = texture2D(roughnessMap, vMapUv).a * useDigitsColor2;

@@ -1,11 +1,11 @@
 import { Canvas } from "@react-three/fiber";
-import { ContactShadows, Environment, OrbitControls } from "@react-three/drei";
+import { TrayEnvironment } from "./TrayEnvironment";
+import { ContactShadows, OrbitControls } from "@react-three/drei";
 
 import Box from "@mui/material/Box";
 
 import { InteractiveDiceRoll } from "../dice/InteractiveDiceRoll";
 import { DiceRollControls } from "../controls/DiceRollControls";
-import environment from "../environment.hdr";
 import { AudioListenerProvider } from "../audio/AudioListenerProvider";
 import { Tray } from "./Tray";
 import { useDebugStore } from "../debug/store";
@@ -55,7 +55,7 @@ export function InteractiveTray() {
       <TraySuspense>
         <Canvas frameloop="demand">
           <AudioListenerProvider>
-            <Environment files={environment} />
+            <TrayEnvironment />
             <ContactShadows
               resolution={256}
               scale={[trayWidth, 2]}

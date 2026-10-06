@@ -48,7 +48,13 @@ export function DicePreview({ diceType, diceStyle, size }: DiePreviewProps) {
   // The custom dice shown in the interface are always the ones of this player
   const look = useDiceControlsStore(getCurrentLook);
   if (diceStyle === "CUSTOM") {
-    return <CustomDieCanvas look={look} size={SIZES[size || "large"]} />;
+    // The die is drawn without a frame around it, smaller than the pictures of the other dice
+    return (
+      <CustomDieCanvas
+        look={look}
+        size={Math.round(SIZES[size || "large"] * 0.8)}
+      />
+    );
   }
   return (
     <PreviewImage

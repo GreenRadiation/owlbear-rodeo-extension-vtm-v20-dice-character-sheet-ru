@@ -1,7 +1,7 @@
 import { Suspense, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Environment } from "@react-three/drei";
+import { TrayEnvironment } from "../tray/TrayEnvironment";
 
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -14,7 +14,6 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { Theme } from "@mui/material/styles";
 
-import environment from "../environment.hdr";
 import { getDefaultLook, useDiceControlsStore } from "../controls/store";
 import { Dice } from "../dice/Dice";
 import {
@@ -33,6 +32,13 @@ import { LOOK_ASSETS } from "../materials/custom/assets";
 import { FONTS } from "../materials/custom/fonts";
 import { ICONS } from "../materials/custom/icons";
 import { Die } from "../types/Die";
+import {
+  ONE_FACE,
+  ONE_UP,
+  TEN_FACE,
+  TEN_UP,
+  getFacingQuaternion,
+} from "../previews/facing";
 
 const PATTERN_NAMES: Record<Pattern, string> = {
   solid: "Ровный",
@@ -68,6 +74,8 @@ const HINTS = {
     "Сколько второго цвета попадает на куб. На нуле узор не виден, на 100% светлые места узора целиком второго цвета.",
   patternScale:
     "Размер деталей узора: мелкие кольца или широкие, мелкий мрамор или крупный, мелкие крапинки или большие. Для узоров готовых кубов не действует.",
+  patternBalance:
+    "Какого цвета в узоре больше. Посередине узор как есть, левее первого цвета становится больше, а второй остаётся только в самых светлых местах узора, правее наоборот. Размер узора пропорции не меняет, этот ползунок меняет.",
   unique:
     "Каждый куб броска получает свой вариант узора, а не один на всех. Узор остаётся тем же, меняется только его расположение. Другие игроки видят те же варианты.",
   digits:
@@ -122,40 +130,28 @@ const HINTS = {
 };
 
 const PREVIEW_DIE: Die = { id: "preview", style: "CUSTOM", type: "D10" };
-/** Where the "0" and the "1" are on the mesh of a D10, see meshes/rounded/D10.tsx */
-const TEN_FACE: [number, number, number] = [0.4, 0.42, -0.56];
-const ONE_FACE: [number, number, number] = [-0.7, -0.37, -0.22];
+/** A little from above, as the tray is seen */
 const TOWARDS_CAMERA = new THREE.Vector3(0, 0.45, 1).normalize();
-/** Found by looking: with these the digits of the two dice of the preview stand upright */
-const TEN_TWIST = -Math.PI / 2;
-const ONE_TWIST = Math.PI;
 
 /** A die that shows one of its faces to the camera and sways a little to catch the light */
 function ShownDie({
   face,
-  twist,
+  up,
   x,
   id,
 }: {
-  face: [number, number, number];
-  /** Turn around the face that puts its digit upright, in radians */
-  twist: number;
+  face: THREE.Vector3;
+  /** The direction on the die the top of the digit of the face points to */
+  up: THREE.Vector3;
   x: number;
   id: string;
 }) {
   const ref = useRef<THREE.Group>(null);
 
-  const rest = useMemo(() => {
-    const toCamera = new THREE.Quaternion().setFromUnitVectors(
-      new THREE.Vector3(...face).normalize(),
-      TOWARDS_CAMERA
-    );
-    const upright = new THREE.Quaternion().setFromAxisAngle(
-      TOWARDS_CAMERA,
-      twist
-    );
-    return upright.multiply(toCamera);
-  }, [face, twist]);
+  const rest = useMemo(
+    () => getFacingQuaternion(face, TOWARDS_CAMERA, up),
+    [face, up]
+  );
 
   const sway = useMemo(() => new THREE.Quaternion(), []);
   const euler = useMemo(() => new THREE.Euler(), []);
@@ -196,21 +192,11 @@ function LookPreview({ look }: { look: DiceLook }) {
     >
       <Canvas camera={{ position: [0, 0.27, 0.6], fov: 28 }}>
         <Suspense fallback={null}>
-          <Environment files={environment} />
+          <TrayEnvironment />
           {/* Contexts don't reach into a canvas from the outside */}
           <DiceLookContext.Provider value={look}>
-            <ShownDie
-              face={TEN_FACE}
-              twist={TEN_TWIST}
-              x={-0.13}
-              id="preview-ten"
-            />
-            <ShownDie
-              face={ONE_FACE}
-              twist={ONE_TWIST}
-              x={0.13}
-              id="preview-one"
-            />
+            <ShownDie face={TEN_FACE} up={TEN_UP} x={-0.13} id="preview-ten" />
+            <ShownDie face={ONE_FACE} up={ONE_UP} x={0.13} id="preview-one" />
           </DiceLookContext.Provider>
         </Suspense>
       </Canvas>
@@ -578,6 +564,12 @@ export function DiceLookSettings({ slot }: { slot: number }) {
             onChange={(patternScale) => changeLook({ patternScale })}
           />
         )}
+        <LookSlider
+          label="Баланс цветов"
+          hint={HINTS.patternBalance}
+          value={look.patternBalance}
+          onChange={(patternBalance) => changeLook({ patternBalance })}
+        />
         <CheckSetting
           label="У каждого куба свой вариант узора"
           hint={HINTS.unique}

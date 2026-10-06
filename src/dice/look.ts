@@ -49,6 +49,8 @@ export interface DiceLook {
   patternStrength: number;
   /** How big the details of a computed pattern are, 0.5 is their usual size */
   patternScale: number;
+  /** Which color the pattern leans to: 0 mostly the first, 1 mostly the second, 0.5 as the pattern is */
+  patternBalance: number;
 
   /** The color of the digits */
   digits: string;
@@ -143,13 +145,13 @@ export const FINISH_PRESETS: Record<Finish, Surface> = {
   plastic: PLAIN_SURFACE,
   gloss: { ...PLAIN_SURFACE, roughness: 0.25, clearcoat: 0.6 },
   metal: { ...PLAIN_SURFACE, roughness: 0.35, metalness: 1 },
+  // Glossy: on a matte die the shimmer is a broad bright spot instead of colors
   pearl: {
     ...PLAIN_SURFACE,
-    roughness: 0.3,
-    metalness: 0.2,
+    roughness: 0.12,
+    metalness: 0.1,
     iridescence: 1,
-    iridescenceHue: 0.4,
-    sheen: 0.3,
+    iridescenceHue: 0.36,
   },
   glass: { ...PLAIN_SURFACE, roughness: 0.15, transmission: 1 },
 };
@@ -161,6 +163,7 @@ export const DEFAULT_LOOK: DiceLook = {
   pattern: "marble",
   patternStrength: 0.7,
   patternScale: 0.5,
+  patternBalance: 0.5,
   digits: "#f0e6d2",
   digits2: "",
   outline: "",
@@ -257,6 +260,7 @@ export function sanitizeLook(
       : d.pattern,
     patternStrength: number(stored.patternStrength, d.patternStrength),
     patternScale: number(stored.patternScale, d.patternScale),
+    patternBalance: number(stored.patternBalance, d.patternBalance),
     digits: color(stored.digits, d.digits),
     digits2: color(stored.digits2, d.digits2, true),
     outline: color(stored.outline, d.outline, true),
@@ -357,6 +361,7 @@ export function randomLook(
       pattern: pick(PATTERNS),
       patternStrength: 0.4 + random() * 0.6,
       patternScale: 0.3 + random() * 0.4,
+      patternBalance: 0.3 + random() * 0.4,
       digits: dark ? hsl(hue, 0.2, 0.9) : hsl(hue, 0.4, 0.08),
       digits2: "",
       outline: random() < 0.2 ? (dark ? "#000000" : "#ffffff") : "",

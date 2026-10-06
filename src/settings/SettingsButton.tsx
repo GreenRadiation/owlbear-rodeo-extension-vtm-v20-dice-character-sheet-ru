@@ -43,7 +43,10 @@ import {
   MIN_SHEET_SIZE,
   MIN_TRAY_HEIGHT,
   MIN_TRAY_WIDTH,
+  LIGHT_TILT_STEP,
+  LIGHT_TURN_STEP,
   MAX_HISTORY_LENGTH,
+  MAX_LIGHT_TILT,
   MAX_PREVIEW_HEIGHT,
   MIN_HISTORY_LENGTH,
   MIN_PREVIEW_HEIGHT,
@@ -327,6 +330,46 @@ function DiceStyleSetting() {
   );
 }
 
+/**
+ * The angle the light falls on the tray from.
+ * Personal for now so that the group can pick an angle, meant to become the same for everyone.
+ */
+function LightSettings() {
+  const tilt = useSettingsStore((state) => state.settings.lightTilt);
+  const turn = useSettingsStore((state) => state.settings.lightTurn);
+  const changeSettings = useSettingsStore((state) => state.changeSettings);
+
+  return (
+    <Stack gap={0.5} pt={2}>
+      <Typography>Свет в лотке</Typography>
+      <Typography variant="caption" color="text.secondary">
+        Откуда падает свет на кубы. В оригинале он идёт ровно сверху, и блик
+        всегда ложится на середину верхней грани. Пока это личная настройка для
+        подбора угла, потом она станет общей для всех.
+      </Typography>
+      <Setting
+        label="Наклон света"
+        value={tilt}
+        format={(value) => (value === 0 ? "сверху" : `${value}°`)}
+        min={0}
+        max={MAX_LIGHT_TILT}
+        step={LIGHT_TILT_STEP}
+        marks
+        onChange={(lightTilt) => changeSettings({ lightTilt })}
+      />
+      <Setting
+        label="Сторона"
+        value={turn}
+        format={(value) => `${value}°`}
+        min={0}
+        max={360 - LIGHT_TURN_STEP}
+        step={LIGHT_TURN_STEP}
+        onChange={(lightTurn) => changeSettings({ lightTurn })}
+      />
+    </Stack>
+  );
+}
+
 function Settings({ onClose }: { onClose: () => void }) {
   const settings = useSettingsStore((state) => state.settings);
   const changeSettings = useSettingsStore((state) => state.changeSettings);
@@ -466,6 +509,7 @@ function Settings({ onClose }: { onClose: () => void }) {
           <Collapse in={specialOpen} unmountOnExit>
             <Stack pt={1}>
               <RoomDataSettings />
+              <LightSettings />
             </Stack>
           </Collapse>
         </Stack>

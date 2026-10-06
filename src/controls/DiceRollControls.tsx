@@ -84,7 +84,12 @@ function DicePickedControls() {
 
   function handleRoll() {
     if (pool > 0 && rollPressTime) {
-      const dice = getDiceToRoll(pool, diceSet);
+      // The same dice as in the pool so that they keep their look
+      const dice = getDiceToRoll(
+        pool,
+        diceSet,
+        useDiceControlsStore.getState().poolSeed
+      );
       const activeTimeSeconds = (performance.now() - rollPressTime) / 1000;
       const speedMultiplier = Math.max(1, Math.min(10, activeTimeSeconds * 2));
       const mode = getTrayMode(useSettingsStore.getState().settings);
