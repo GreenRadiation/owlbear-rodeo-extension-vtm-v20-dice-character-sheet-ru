@@ -1,4 +1,11 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
@@ -162,14 +169,17 @@ export function DiceRollControls() {
 
 /**
  * Whether the tray is wide enough for the difficulty and the speciality at
- * the sides of the result. Measured before the first paint so that the header
- * never shows up in the wrong layout for a frame.
+ * the sides of the result. The measuring box comes and goes with the stages
+ * of a roll while this hook lives on, so the observer is attached through a
+ * callback ref, as soon as the box is there. React flushes the state set in
+ * it before the paint, so the header never shows up in the wrong layout.
  */
 function useWideTray() {
-  const measureRef = useRef<HTMLDivElement>(null);
   const [wide, setWide] = useState(false);
-  useLayoutEffect(() => {
-    const element = measureRef.current;
+  const observerRef = useRef<ResizeObserver>();
+  const measureRef = useCallback((element: HTMLDivElement | null) => {
+    observerRef.current?.disconnect();
+    observerRef.current = undefined;
     if (!element) {
       return;
     }
@@ -177,7 +187,7 @@ function useWideTray() {
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(element);
-    return () => observer.disconnect();
+    observerRef.current = observer;
   }, []);
   return [measureRef, wide] as const;
 }
