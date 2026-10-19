@@ -21,12 +21,24 @@ const previews: Record<ImageDiceStyle, string> = {
   WALNUT: walnutPreviews.D10,
 };
 
+const NAMES: Record<DiceStyle, string> = {
+  SUNSET: "закат",
+  GALAXY: "галактика",
+  GEMSTONE: "самоцвет",
+  GLASS: "стекло",
+  IRON: "железо",
+  NEBULA: "туманность",
+  SUNRISE: "рассвет",
+  WALNUT: "орех",
+  CUSTOM: "свои кубы 1",
+};
+
 /** V20 only uses pools of D10 so every set is a single D10 of a given style */
 function createSet(style: DiceStyle): DiceSet {
   const id = `${style}_STANDARD`;
   return {
     id,
-    name: `${style.toLowerCase()} dice`,
+    name: NAMES[style],
     dice: [{ id: `${id}_D10`, type: "D10", style }],
     // Custom dice have no image, they are drawn from their look
     previewImage: style === "CUSTOM" ? "" : previews[style],
@@ -48,7 +60,7 @@ export const diceSets: DiceSet[] = [
   {
     ...createSet("CUSTOM"),
     id: "CUSTOM2_STANDARD",
-    name: "custom dice 2",
+    name: "свои кубы 2",
     dice: [{ id: "CUSTOM2_STANDARD_D10", type: "D10", style: "CUSTOM" }],
   },
 ];

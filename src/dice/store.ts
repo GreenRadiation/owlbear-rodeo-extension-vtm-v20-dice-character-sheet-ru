@@ -29,10 +29,11 @@ interface DiceRollState {
   rollThrows: Record<string, DiceThrow>;
   /**
    * The difficulty the successes of the current roll are counted against.
-   * Goes back to the default with every new roll.
+   * Set up while the pool is picked, kept through the roll and its rerolls,
+   * back to the default when the roll is cleared for the next one.
    */
   difficulty: number;
-  /** Count tens of the current roll twice, off again with every new roll */
+  /** Count tens of the current roll twice, same lifetime as the difficulty */
   specialty: boolean;
   startRoll: (roll: DiceRoll, speedMultiplier?: number) => void;
   clearRoll: (ids?: string) => void;
@@ -65,8 +66,6 @@ export const useDiceRollStore = create<DiceRollState>()(
         state.rollValues = {};
         state.rollTransforms = {};
         state.rollThrows = {};
-        state.difficulty = DEFAULT_DIFFICULTY;
-        state.specialty = false;
         // Use a thrower so that the dice of a big pool don't start inside each other
         const thrower = new DiceThrower(roll.tray || 1, roll.scale || 1);
         // Set all values to null
@@ -95,9 +94,7 @@ export const useDiceRollStore = create<DiceRollState>()(
           return;
         }
         if (!ids) {
-          // Rerolling everything is a new roll
-          state.difficulty = DEFAULT_DIFFICULTY;
-          state.specialty = false;
+          // Rerolling everything is the same check again, the difficulty stays
           if (current) {
             state.roll.scale = current.scale;
             state.roll.tray = current.tray;

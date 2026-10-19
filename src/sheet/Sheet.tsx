@@ -43,9 +43,9 @@ import { PROFILE_SECTION, useSection } from "./useSection";
 
 type Update = (change: (sheet: SheetData) => SheetData) => void;
 
-/** Add dice to the pool of the tray, like the pool buttons this clears a finished roll */
-function addDice(count: number) {
-  useDiceControlsStore.getState().addToPool(count);
+/** Add the dice of a trait to the pool of the tray, like the pool buttons this clears a finished roll */
+function addDice(count: number, name: string) {
+  useDiceControlsStore.getState().addToPool(count, name);
   const roll = useDiceRollStore.getState();
   if (roll.roll) {
     roll.clearRoll();
@@ -74,7 +74,7 @@ function RollButton({
       className={`sheet-roll${dice > 0 ? "" : " empty"}`}
       title={`${label}: добавить в пул ${dice}`}
       aria-label={`${label}: добавить в пул ${dice}`}
-      onClick={() => dice > 0 && addDice(dice)}
+      onClick={() => dice > 0 && addDice(dice, label)}
     >
       <DiceIcon fontSize="inherit" />
       {name && <span>{name}</span>}

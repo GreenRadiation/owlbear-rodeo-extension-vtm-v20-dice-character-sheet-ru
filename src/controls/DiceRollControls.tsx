@@ -22,6 +22,7 @@ import { RollResult, WIDE_RESULT_WIDTH } from "./RollResult";
 import {
   getCurrentLook,
   getDiceToRoll,
+  getPoolLabel,
   isCustomDiceSet,
   useDiceControlsStore,
 } from "./store";
@@ -40,8 +41,18 @@ const jiggle = keyframes`
 100% { transform: translate(0, 0) rotate(0deg); }
 `;
 
+/** Space the buttons at the sides of the tray take, the result sits between them */
+const SIDE_BUTTONS = 64;
+
+/**
+ * The controls over the tray. The difficulty and the speciality are shown
+ * the same way through every stage: while the pool is picked, while the dice
+ * roll and with the result. A check with a high difficulty can be set up
+ * before anyone sees a result counted against the usual 6.
+ */
 export function DiceRollControls() {
   const pool = useDiceControlsStore((state) => state.pool);
+  const roll = useDiceRollStore((state) => state.roll);
 
   const rollValues = useDiceRollStore((state) => state.rollValues);
   const finishedRolling = useMemo(() => {
@@ -69,9 +80,84 @@ export function DiceRollControls() {
         </span>
       </Fade>
     );
+  } else if (roll) {
+    return <RollingControls />;
   } else {
     return null;
   }
+}
+
+/** Whether the tray is wide enough for the difficulty and the speciality at the sides of the result */
+function useWideTray() {
+  const measureRef = useRef<HTMLDivElement>(null);
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const element = measureRef.current;
+    if (!element) {
+      return;
+    }
+    const observer = new ResizeObserver(() =>
+      setWide(element.clientWidth >= WIDE_RESULT_WIDTH)
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  return [measureRef, wide] as const;
+}
+
+/**
+ * The difficulty, the speciality and the result, in the same place through
+ * every stage of a roll. Before the dice land there is no result.
+ */
+function TrayHeader({
+  wide,
+  values,
+  label,
+  expanded,
+  onExpand,
+}: {
+  wide: boolean;
+  /** The values of the dice once they have landed */
+  values?: number[];
+  /** What is being rolled */
+  label?: string;
+  expanded: boolean;
+  onExpand: (expanded: boolean) => void;
+}) {
+  const difficulty = useDiceRollStore((state) => state.difficulty);
+  const setDifficulty = useDiceRollStore((state) => state.setDifficulty);
+  const specialty = useDiceRollStore((state) => state.specialty);
+  const setSpecialty = useDiceRollStore((state) => state.setSpecialty);
+
+  return (
+    <Stack
+      sx={{
+        position: "absolute",
+        top: 0,
+        // A wide result takes the whole space between the buttons at the sides
+        left: wide ? SIDE_BUTTONS : "50%",
+        right: wide ? SIDE_BUTTONS : undefined,
+        transform: wide ? undefined : "translateX(-50%)",
+        pointerEvents: "none",
+        py: 3,
+        px: wide ? 0 : 3,
+        alignItems: "center",
+      }}
+      component="div"
+    >
+      <RollResult
+        values={values}
+        difficulty={difficulty}
+        onDifficultyChange={setDifficulty}
+        specialty={specialty}
+        onSpecialtyChange={setSpecialty}
+        wide={wide}
+        label={label}
+        expanded={expanded}
+        onExpand={onExpand}
+      />
+    </Stack>
+  );
 }
 
 function DicePickedControls() {
@@ -81,15 +167,13 @@ function DicePickedControls() {
   const diceSet = useDiceControlsStore((state) => state.diceSet);
   const visibility = useDiceControlsStore((state) => state.visibility);
   const resetPool = useDiceControlsStore((state) => state.resetPool);
+  const label = useDiceControlsStore(getPoolLabel);
 
   function handleRoll() {
     if (pool > 0 && rollPressTime) {
+      const controls = useDiceControlsStore.getState();
       // The same dice as in the pool so that they keep their look
-      const dice = getDiceToRoll(
-        pool,
-        diceSet,
-        useDiceControlsStore.getState().poolSeed
-      );
+      const dice = getDiceToRoll(pool, diceSet, controls.poolSeed);
       const activeTimeSeconds = (performance.now() - rollPressTime) / 1000;
       const speedMultiplier = Math.max(1, Math.min(10, activeTimeSeconds * 2));
       const mode = getTrayMode(useSettingsStore.getState().settings);
@@ -100,9 +184,8 @@ function DicePickedControls() {
           gm: visibility === "GM",
           scale: mode.diceScale,
           tray: getTrayModelWidth(mode.width),
-          look: isCustomDiceSet(diceSet)
-            ? getCurrentLook(useDiceControlsStore.getState())
-            : undefined,
+          look: isCustomDiceSet(diceSet) ? getCurrentLook(controls) : undefined,
+          label: getPoolLabel(controls),
         },
         speedMultiplier
       );
@@ -135,6 +218,7 @@ function DicePickedControls() {
   }, [rollPressTime]);
 
   const theme = useTheme();
+  const [measureRef, wide] = useWideTray();
 
   return (
     <>
@@ -213,26 +297,71 @@ function DicePickedControls() {
           </Button>
         </Box>
       </ButtonBase>
-      <GradientOverlay top />
-      <Stack
+      <GradientOverlay top height={wide ? 130 : 200} />
+      <Box
         sx={{
           position: "absolute",
-          top: 12,
-          left: "50%",
-          transform: "translateX(-50%)",
+          top: 0,
+          left: 0,
+          width: "100%",
+          pointerEvents: "none",
+          padding: 3,
         }}
+        component="div"
+        ref={measureRef}
       >
-        <Tooltip title="Очистить" disableInteractive>
-          <IconButton
-            onClick={(e) => {
-              e.stopPropagation();
-              resetPool();
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
-        </Tooltip>
-      </Stack>
+        <Stack direction="row" justifyContent="flex-end" width="100%">
+          <Tooltip title="Очистить" disableInteractive>
+            <IconButton
+              onClick={(e) => {
+                e.stopPropagation();
+                resetPool();
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onPointerUp={(e) => e.stopPropagation()}
+              sx={{ pointerEvents: "all", color: "white" }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      </Box>
+      <TrayHeader
+        wide={wide}
+        label={label}
+        expanded={false}
+        onExpand={() => {}}
+      />
+    </>
+  );
+}
+
+/** While the dice roll: the difficulty can still be set, nothing else to do */
+function RollingControls() {
+  const roll = useDiceRollStore((state) => state.roll);
+  const [measureRef, wide] = useWideTray();
+
+  return (
+    <>
+      <GradientOverlay top height={wide ? 130 : 200} />
+      <Box
+        sx={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          pointerEvents: "none",
+          padding: 3,
+        }}
+        component="div"
+        ref={measureRef}
+      />
+      <TrayHeader
+        wide={wide}
+        label={roll?.label}
+        expanded={false}
+        onExpand={() => {}}
+      />
     </>
   );
 }
@@ -241,10 +370,6 @@ function FinishedRollControls() {
   const roll = useDiceRollStore((state) => state.roll);
   const clearRoll = useDiceRollStore((state) => state.clearRoll);
   const reroll = useDiceRollStore((state) => state.reroll);
-  const difficulty = useDiceRollStore((state) => state.difficulty);
-  const setDifficulty = useDiceRollStore((state) => state.setDifficulty);
-  const specialty = useDiceRollStore((state) => state.specialty);
-  const setSpecialty = useDiceRollStore((state) => state.setSpecialty);
 
   const rollValues = useDiceRollStore((state) => state.rollValues);
   const values = useMemo(() => {
@@ -258,27 +383,13 @@ function FinishedRollControls() {
   }, [rollValues]);
 
   const [resultsExpanded, setResultsExpanded] = useState(false);
-
-  // Measure the tray to lay out the result of the roll
-  const measureRef = useRef<HTMLDivElement>(null);
-  const [wide, setWide] = useState(false);
-  useEffect(() => {
-    const element = measureRef.current;
-    if (!element) {
-      return;
-    }
-    const observer = new ResizeObserver(() =>
-      setWide(element.clientWidth >= WIDE_RESULT_WIDTH)
-    );
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
+  const [measureRef, wide] = useWideTray();
 
   return (
     <>
       <GradientOverlay
         top
-        height={(wide ? 110 : 180) + (resultsExpanded ? 80 : 0)}
+        height={(wide ? 130 : 200) + (resultsExpanded ? 80 : 0)}
       />
       <Box
         sx={{
@@ -328,35 +439,26 @@ function FinishedRollControls() {
           </Tooltip>
         </Stack>
       </Box>
-      <Stack
-        sx={{
-          position: "absolute",
-          top: 0,
-          // A wide result takes the whole space between the buttons at the sides
-          left: wide ? 64 : "50%",
-          right: wide ? 64 : undefined,
-          transform: wide ? undefined : "translateX(-50%)",
-          pointerEvents: "none",
-          py: 3,
-          px: wide ? 0 : 3,
-          alignItems: "center",
-        }}
-        component="div"
-      >
-        {roll && (
-          <RollResult
-            values={values}
-            difficulty={difficulty}
-            onDifficultyChange={setDifficulty}
-            specialty={specialty}
-            onSpecialtyChange={setSpecialty}
-            wide={wide}
-            expanded={resultsExpanded}
-            onExpand={setResultsExpanded}
-          />
-        )}
-        {roll?.hidden &&
-          (roll.gm ? (
+      {roll && (
+        <TrayHeader
+          wide={wide}
+          values={values}
+          label={roll.label}
+          expanded={resultsExpanded}
+          onExpand={setResultsExpanded}
+        />
+      )}
+      {roll?.hidden && (
+        <Box
+          component="div"
+          sx={{
+            position: "absolute",
+            top: wide ? 150 : 220,
+            left: "50%",
+            transform: "translateX(-50%)",
+          }}
+        >
+          {roll.gm ? (
             <Tooltip title="Этот бросок видит только мастер">
               <GmIcon htmlColor="white" sx={{ pointerEvents: "all" }} />
             </Tooltip>
@@ -364,8 +466,9 @@ function FinishedRollControls() {
             <Tooltip title="Этот бросок не видит никто">
               <HiddenIcon htmlColor="white" sx={{ pointerEvents: "all" }} />
             </Tooltip>
-          ))}
-      </Stack>
+          )}
+        </Box>
+      )}
     </>
   );
 }

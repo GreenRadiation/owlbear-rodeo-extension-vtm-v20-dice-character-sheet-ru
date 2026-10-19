@@ -11,7 +11,8 @@ import Tooltip from "@mui/material/Tooltip";
 
 import AddIcon from "@mui/icons-material/AddRounded";
 import RemoveIcon from "@mui/icons-material/RemoveRounded";
-import DifficultyIcon from "@mui/icons-material/TerrainRounded";
+import difficultyIcon from "../icons/difficulty.svg";
+import { FileIcon } from "../icons/FileIcon";
 import CheckedIcon from "@mui/icons-material/CheckBoxRounded";
 import UncheckedIcon from "@mui/icons-material/CheckBoxOutlineBlankRounded";
 
@@ -32,6 +33,7 @@ import { useSymbols } from "../settings/store";
  */
 export function RollResult({
   values,
+  label,
   difficulty,
   onDifficultyChange,
   specialty,
@@ -40,8 +42,10 @@ export function RollResult({
   onExpand,
   wide,
 }: {
-  /** Values of the dice in the 1-10 range */
-  values: number[];
+  /** Values of the dice in the 1-10 range, none while the dice are still rolling */
+  values?: number[];
+  /** What was rolled: "Сила + Атлетика + 2d10" */
+  label?: string;
   difficulty: number;
   onDifficultyChange?: (difficulty: number) => void;
   /** Count every ten as two successes */
@@ -58,16 +62,16 @@ export function RollResult({
 }) {
   const symbols = useSymbols();
   const outcome = useMemo(
-    () => getRollOutcome(values, difficulty, specialty),
+    () => (values ? getRollOutcome(values, difficulty, specialty) : null),
     [values, difficulty, specialty]
   );
-  const sorted = useMemo(() => sortValues(values), [values]);
+  const sorted = useMemo(() => (values ? sortValues(values) : []), [values]);
 
   // The tooltip of the result hangs below everything here, right under the
   // result it would cover the values it is about
   const [root, setRoot] = useState<HTMLDivElement | null>(null);
 
-  const result = (
+  const result = outcome ? (
     <Tooltip
       title={expanded ? "Скрыть значения" : "Показать значения"}
       disableInteractive
@@ -83,6 +87,9 @@ export function RollResult({
         </Typography>
       </Button>
     </Tooltip>
+  ) : (
+    // Keeps the place of the result while the dice roll
+    <Box component="div" minWidth="40px" height="46px" />
   );
 
   const difficultyControl = (
@@ -100,8 +107,10 @@ export function RollResult({
       )}
       <Tooltip title="Сложность" disableInteractive>
         <Stack alignItems="center" width="32px">
-          <DifficultyIcon
-            sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: 16 }}
+          <FileIcon
+            src={difficultyIcon}
+            size={16}
+            sx={{ color: "rgba(255, 255, 255, 0.7)" }}
           />
           <Typography color="white" lineHeight="18px">
             {difficulty}
@@ -180,6 +189,17 @@ export function RollResult({
           {difficultyControl}
           {specialtyControl}
         </>
+      )}
+      {label && (
+        <Typography
+          variant="caption"
+          color="rgba(255, 255, 255, 0.75)"
+          textAlign="center"
+          px={1}
+          sx={{ letterSpacing: "0.04em" }}
+        >
+          БРОСОК: {label}
+        </Typography>
       )}
       <Grow
         in={expanded}

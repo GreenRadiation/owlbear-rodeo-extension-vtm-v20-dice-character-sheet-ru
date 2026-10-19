@@ -25,4 +25,6 @@ export interface DiceRoll extends Dice {
    * Comes from another player: not to be trusted, see `sanitizeLook`.
    */
   look?: unknown;
+  /** What was rolled, as the player put the pool together: "Сила + Атлетика + 2d10" */
+  label?: string;
 }

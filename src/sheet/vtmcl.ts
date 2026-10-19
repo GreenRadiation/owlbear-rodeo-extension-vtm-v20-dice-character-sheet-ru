@@ -10,6 +10,8 @@ import {
   ATTRIBUTE_KEYS,
   HEALTH_LEVELS,
   Sheet,
+  TRAIT_NAMES,
+  TraitKey,
   VIRTUE_KEYS,
   sanitizeSheet,
 } from "./model";
@@ -61,6 +63,9 @@ export function importVtmcl(json: string): VtmclImport | null {
   const profile = record(source.profile);
   const state = record(source.state);
   const health = record(source.health);
+  const { notes, specialties } = readSpecialties(
+    typeof source.notes === "string" ? source.notes : ""
+  );
 
   const sheet = sanitizeSheet({
     name: profile.name,
@@ -83,12 +88,10 @@ export function importVtmcl(json: string): VtmclImport | null {
     merits: source.merits,
     flaws: source.flaws,
     experience: state.experience,
+    specialties,
   });
 
-  return {
-    sheet,
-    notes: typeof source.notes === "string" ? source.notes : "",
-  };
+  return { sheet, notes };
 }
 
 /**
@@ -253,10 +256,67 @@ function createVtmclSheet() {
   };
 }
 
+/** The heading of the block of specialities at the end of the notes of a file */
+const SPECIALTIES_HEADING = "[Специализации]";
+
+/**
+ * The site has no place for specialities. They go at the end of the notes
+ * of the file as a block the site shows as text and this extension reads back:
+ *
+ *   [Специализации]
+ *   Сила: Подъём тяжестей
+ */
+export function writeSpecialties(
+  notes: string,
+  specialties: Partial<Record<TraitKey, string>>
+): string {
+  const lines = (Object.keys(TRAIT_NAMES) as TraitKey[])
+    .filter((key) => specialties[key])
+    .map((key) => `${TRAIT_NAMES[key]}: ${specialties[key]}`);
+  if (lines.length === 0) {
+    return notes;
+  }
+  const body = notes.trimEnd();
+  return `${body ? `${body}\n\n` : ""}${SPECIALTIES_HEADING}\n${lines.join(
+    "\n"
+  )}`;
+}
+
+/** Take the block of specialities out of the notes of a file */
+export function readSpecialties(notes: string): {
+  notes: string;
+  specialties: Partial<Record<TraitKey, string>>;
+} {
+  const at = notes.lastIndexOf(SPECIALTIES_HEADING);
+  if (at < 0) {
+    return { notes, specialties: {} };
+  }
+  const keys = new Map(
+    (Object.keys(TRAIT_NAMES) as TraitKey[]).map((key) => [
+      TRAIT_NAMES[key],
+      key,
+    ])
+  );
+  const specialties: Partial<Record<TraitKey, string>> = {};
+  for (const line of notes.slice(at + SPECIALTIES_HEADING.length).split("\n")) {
+    const colon = line.indexOf(":");
+    if (colon < 0) {
+      continue;
+    }
+    const key = keys.get(line.slice(0, colon).trim());
+    const text = line.slice(colon + 1).trim();
+    if (key && text) {
+      specialties[key] = text;
+    }
+  }
+  return { notes: notes.slice(0, at).trimEnd(), specialties };
+}
+
 /**
  * Write a sheet as the contents of a file the site can load.
  * What the site has and this sheet doesn't (history, goals, appearance) is left empty,
- * what this sheet has and the site doesn't (specialities, the lock) is lost.
+ * what this sheet has and the site doesn't (the lock) is lost; the specialities
+ * ride along in the notes.
  */
 export function exportVtmcl(
   sheet: Sheet,
@@ -283,7 +343,7 @@ export function exportVtmcl(
   target.backgrounds = sheet.backgrounds.map((trait) => ({ ...trait }));
   target.merits = [...sheet.merits];
   target.flaws = [...sheet.flaws];
-  target.notes = notes;
+  target.notes = writeSpecialties(notes, sheet.specialties);
   target.state.humanity = sheet.humanity;
   target.state.pathName = sheet.path;
   target.state.willpowerRating = sheet.willpower;

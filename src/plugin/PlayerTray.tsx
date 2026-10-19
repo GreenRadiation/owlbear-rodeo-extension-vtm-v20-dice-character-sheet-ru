@@ -220,6 +220,11 @@ function PlayerTrayResults({
               <Stack width="100%" alignItems="center">
                 <RollResult
                   values={values}
+                  label={
+                    typeof diceRoll?.label === "string"
+                      ? diceRoll.label.slice(0, 120)
+                      : undefined
+                  }
                   difficulty={difficulty}
                   specialty={specialty}
                   expanded={resultsExpanded}

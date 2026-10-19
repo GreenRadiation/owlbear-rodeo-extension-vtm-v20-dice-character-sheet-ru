@@ -17,8 +17,21 @@ import { LOOK_ASSETS } from "../materials/custom/assets";
 export type Visibility = "ALL" | "GM" | "NONE";
 const VISIBILITIES: Visibility[] = ["ALL", "GM", "NONE"];
 
-/** The most dice that can be rolled at once */
-export const MAX_POOL = 16;
+import {
+  EMPTY_POOL,
+  MAX_POOL,
+  Pool,
+  changePool,
+  getPoolLabel as getLabel,
+  getPoolSize,
+} from "./pool";
+
+export { MAX_POOL };
+
+/** What the pool is made of, for the player to see what they are rolling */
+export function getPoolLabel(state: { poolParts: Pool }): string {
+  return getLabel(state.poolParts);
+}
 
 const DICE_SET_STORAGE_KEY = getPluginId("dice-set");
 /** Where the look of every slot of custom dice is kept */
@@ -33,6 +46,8 @@ interface DiceControlsState {
   looks: DiceLook[];
   /** How many dice will be rolled */
   pool: number;
+  /** What the pool is made of, see pool.ts; `pool` is its size */
+  poolParts: Pool;
   /** Start of the ids of the dice of this pool, new with every pool */
   poolSeed: string;
   /** Who sees the next roll */
@@ -42,8 +57,11 @@ interface DiceControlsState {
   /** Change the look of a slot of custom dice */
   changeLook: (slot: number, update: Partial<DiceLook>) => void;
   resetPool: () => void;
-  /** Add dice to the pool, a negative count removes them */
-  addToPool: (count: number) => void;
+  /**
+   * Add dice to the pool, a negative count removes them.
+   * With a name the dice are a trait of the sheet and the roll is named after it.
+   */
+  addToPool: (count: number, name?: string) => void;
   /** Switch to the next kind of visibility, the GM has no use for rolls only the GM sees */
   cycleVisibility: (gm?: boolean) => void;
   setDiceRollPressTime: (time: number | null) => void;
@@ -101,6 +119,7 @@ export const useDiceControlsStore = create<DiceControlsState>()(
     diceSet: loadDiceSet(),
     looks: loadLooks(),
     pool: 0,
+    poolParts: EMPTY_POOL,
     poolSeed: generateDiceId(),
     visibility: "ALL",
     diceRollPressTime: null,
@@ -128,12 +147,14 @@ export const useDiceControlsStore = create<DiceControlsState>()(
     resetPool() {
       set((state) => {
         state.pool = 0;
+        state.poolParts = EMPTY_POOL;
         state.poolSeed = generateDiceId();
       });
     },
-    addToPool(count) {
+    addToPool(count, name) {
       set((state) => {
-        state.pool = Math.min(MAX_POOL, Math.max(0, state.pool + count));
+        state.poolParts = changePool(state.poolParts, count, name);
+        state.pool = getPoolSize(state.poolParts);
       });
     },
     cycleVisibility(gm) {

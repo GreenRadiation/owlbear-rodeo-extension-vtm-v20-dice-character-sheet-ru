@@ -176,16 +176,36 @@ describe("trechkalov.com format", () => {
     // The site has no specialities, lock or blood dots
     expect(imported!.sheet).toEqual({
       ...sheet,
-      specialties: {},
       locked: false,
       bloodDots: createSheet().bloodDots,
     });
     expect(imported!.notes).toBe("Заметки");
   });
 
+  it("carries the specialities in the notes of the file", () => {
+    const sheet = fullSheet();
+    const file = JSON.parse(exportVtmcl(sheet, "Заметки", 2));
+    expect(file.Charsheet.notes).toBe(
+      "Заметки\n\n[Специализации]\nИнтеллект: Начитанность\nКрасноречие: Уличная живопись"
+    );
+    // Without specialities the notes are left alone
+    expect(
+      JSON.parse(exportVtmcl({ ...sheet, specialties: {} }, "Заметки", 2))
+        .Charsheet.notes
+    ).toBe("Заметки");
+    // A file the site saved keeps the block, and it is read back
+    const imported = importVtmcl(JSON.stringify(file));
+    expect(imported!.sheet.specialties).toEqual(sheet.specialties);
+    expect(imported!.notes).toBe("Заметки");
+  });
+
   it("writes every field the site expects", () => {
     const file = JSON.parse(exportVtmcl(fullSheet(), "", 2));
-    expect(Object.keys(file).sort()).toEqual(["Charsheet", "Settings", "Version"]);
+    expect(Object.keys(file).sort()).toEqual([
+      "Charsheet",
+      "Settings",
+      "Version",
+    ]);
     expect(file.Version).toBe("0.7.0");
     expect(file.Charsheet.preset).toBe("vampire_v20");
     expect(file.Charsheet.profile.generation).toBe("9-е");
