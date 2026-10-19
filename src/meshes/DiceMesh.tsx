@@ -1,4 +1,5 @@
 import React from "react";
+import * as THREE from "three";
 import { DiceType } from "../types/DiceType";
 import { RoundedDiceMesh } from "./rounded/RoundedDiceMesh";
 import { SharpDiceMesh } from "./sharp/SharpDiceMesh";

@@ -1,4 +1,4 @@
-import create from "zustand";
+import { create } from "zustand";
 
 /**
  * The player whose tray is opened over the tray of this player.

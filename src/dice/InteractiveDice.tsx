@@ -181,7 +181,8 @@ export function InteractiveDice(
   });
 
   return (
-    <animated.group position={position}>
+    // The types of @react-spring/three 9 predate three r18x, the value is the same
+    <animated.group position={position as unknown as [number, number, number]}>
       <Dice onPointerDown={handlePointerDown} ref={diceRef} {...props}></Dice>
     </animated.group>
   );

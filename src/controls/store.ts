@@ -1,4 +1,4 @@
-import create from "zustand";
+import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import { diceSets } from "../sets/diceSets";
 import { DiceSet } from "../types/DiceSet";

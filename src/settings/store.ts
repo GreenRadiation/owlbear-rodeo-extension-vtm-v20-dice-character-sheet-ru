@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import create from "zustand";
+import { create } from "zustand";
 
 import { getPluginId } from "../plugin/getPluginId";
 import { MAX_HISTORY_ROLLS } from "../v20/history";

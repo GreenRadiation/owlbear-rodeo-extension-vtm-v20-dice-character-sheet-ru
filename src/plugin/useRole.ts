@@ -1,5 +1,5 @@
 import OBR from "@owlbear-rodeo/sdk";
-import create from "zustand";
+import { create } from "zustand";
 
 type Role = "GM" | "PLAYER";
 
