@@ -52,6 +52,11 @@ export default defineConfig(({ command }) => ({
   base: command === "build" ? PAGES_BASE : "/",
   plugins: [react(), manifest()],
   assetsInclude: ["**/*.glb", "**/*.hdr"],
+  optimizeDeps: {
+    // Pre-bundled, the wasm module of Rapier ends up in two copies in dev:
+    // @react-three/rapier initialises one and builds the world with the other
+    exclude: ["@dimforge/rapier3d-compat"],
+  },
   server: {
     cors: true,
   },

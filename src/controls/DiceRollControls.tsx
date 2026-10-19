@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
@@ -44,61 +44,138 @@ const jiggle = keyframes`
 /** Space the buttons at the sides of the tray take, the result sits between them */
 const SIDE_BUTTONS = 64;
 
+type Stage = "picked" | "rolling" | "finished";
+
 /**
  * The controls over the tray. The difficulty and the speciality are shown
  * the same way through every stage: while the pool is picked, while the dice
  * roll and with the result. A check with a high difficulty can be set up
  * before anyone sees a result counted against the usual 6.
+ *
+ * The header and the measuring box live here, outside the stages, so that
+ * a change of stage neither remounts them nor fades them in again.
  */
 export function DiceRollControls() {
   const pool = useDiceControlsStore((state) => state.pool);
   const roll = useDiceRollStore((state) => state.roll);
 
   const rollValues = useDiceRollStore((state) => state.rollValues);
-  const finishedRolling = useMemo(() => {
-    const values = Object.values(rollValues);
-    if (values.length === 0) {
-      return false;
-    } else {
-      return values.every((value) => value !== null);
+  const values = useMemo(() => {
+    const values: number[] = [];
+    for (const value of Object.values(rollValues)) {
+      if (value === null) {
+        return null;
+      }
+      values.push(faceToValue(value));
     }
+    return values.length > 0 ? values : null;
   }, [rollValues]);
 
-  if (pool > 0) {
-    return (
-      <Fade in>
-        <span>
-          <DicePickedControls />
-        </span>
-      </Fade>
-    );
-  } else if (finishedRolling) {
-    return (
-      <Fade in>
-        <span>
-          <FinishedRollControls />
-        </span>
-      </Fade>
-    );
-  } else if (roll) {
-    return <RollingControls />;
-  } else {
+  const stage: Stage | null =
+    pool > 0 ? "picked" : values ? "finished" : roll ? "rolling" : null;
+
+  const [resultsExpanded, setResultsExpanded] = useState(false);
+  useEffect(() => {
+    if (stage !== "finished") {
+      setResultsExpanded(false);
+    }
+  }, [stage]);
+
+  const [measureRef, wide] = useWideTray();
+
+  if (!stage) {
     return null;
   }
+
+  const expanded = stage === "finished" && resultsExpanded;
+  return (
+    <>
+      {stage === "picked" && (
+        <Fade in>
+          <span>
+            <RollOverlay />
+          </span>
+        </Fade>
+      )}
+      <GradientOverlay top height={(wide ? 130 : 200) + (expanded ? 80 : 0)} />
+      <Box
+        sx={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          pointerEvents: "none",
+          padding: 3,
+        }}
+        component="div"
+        ref={measureRef}
+      >
+        {stage === "picked" && (
+          <Fade in>
+            <div>
+              <PickedButtons />
+            </div>
+          </Fade>
+        )}
+        {stage === "finished" && (
+          <Fade in>
+            <div>
+              <FinishedButtons />
+            </div>
+          </Fade>
+        )}
+      </Box>
+      <Fade in>
+        <span>
+          <TrayHeader
+            wide={wide}
+            values={stage === "finished" ? values ?? undefined : undefined}
+            expanded={expanded}
+            onExpand={setResultsExpanded}
+          />
+        </span>
+      </Fade>
+      {stage === "finished" && roll?.hidden && (
+        <Box
+          component="div"
+          sx={{
+            position: "absolute",
+            top: wide ? 150 : 220,
+            left: "50%",
+            transform: "translateX(-50%)",
+          }}
+        >
+          {roll.gm ? (
+            <Tooltip title="Этот бросок видит только мастер">
+              <GmIcon htmlColor="white" sx={{ pointerEvents: "all" }} />
+            </Tooltip>
+          ) : (
+            <Tooltip title="Этот бросок не видит никто">
+              <HiddenIcon htmlColor="white" sx={{ pointerEvents: "all" }} />
+            </Tooltip>
+          )}
+        </Box>
+      )}
+    </>
+  );
 }
 
-/** Whether the tray is wide enough for the difficulty and the speciality at the sides of the result */
+/**
+ * Whether the tray is wide enough for the difficulty and the speciality at
+ * the sides of the result. Measured before the first paint so that the header
+ * never shows up in the wrong layout for a frame.
+ */
 function useWideTray() {
   const measureRef = useRef<HTMLDivElement>(null);
   const [wide, setWide] = useState(false);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = measureRef.current;
     if (!element) {
       return;
     }
-    const observer = new ResizeObserver(() =>
-      setWide(element.clientWidth >= WIDE_RESULT_WIDTH)
-    );
+    const measure = () => setWide(element.clientWidth >= WIDE_RESULT_WIDTH);
+    measure();
+    const observer = new ResizeObserver(measure);
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
@@ -112,15 +189,12 @@ function useWideTray() {
 function TrayHeader({
   wide,
   values,
-  label,
   expanded,
   onExpand,
 }: {
   wide: boolean;
   /** The values of the dice once they have landed */
   values?: number[];
-  /** What is being rolled */
-  label?: string;
   expanded: boolean;
   onExpand: (expanded: boolean) => void;
 }) {
@@ -152,7 +226,6 @@ function TrayHeader({
         specialty={specialty}
         onSpecialtyChange={setSpecialty}
         wide={wide}
-        label={label}
         expanded={expanded}
         onExpand={onExpand}
       />
@@ -160,7 +233,12 @@ function TrayHeader({
   );
 }
 
-function DicePickedControls() {
+/**
+ * The whole tray is the roll button while the pool is picked. The pill in
+ * the middle says what is being rolled, "БРОСОК: Сила + Атлетика + 2d10",
+ * and grows or shrinks with the pool.
+ */
+function RollOverlay() {
   const startRoll = useDiceRollStore((state) => state.startRoll);
 
   const pool = useDiceControlsStore((state) => state.pool);
@@ -217,258 +295,170 @@ function DicePickedControls() {
     }
   }, [rollPressTime]);
 
+  // The text of the pill is given its width explicitly so that it can
+  // animate: a width of "auto" doesn't. The width comes from a hidden copy
+  // of the text, the visible one is already held at the width of the pill.
+  const measureRef = useRef<HTMLSpanElement>(null);
+  const [textWidth, setTextWidth] = useState<number>();
+  useLayoutEffect(() => {
+    if (measureRef.current) {
+      setTextWidth(measureRef.current.offsetWidth);
+    }
+  }, [label]);
+
   const theme = useTheme();
-  const [measureRef, wide] = useWideTray();
 
   return (
-    <>
-      <ButtonBase
+    <ButtonBase
+      sx={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: "100%",
+        height: "100%",
+        cursor: "pointer",
+        backgroundColor: "rgba(0, 0, 0, 0.25)",
+        ":focus": {
+          outline: 0,
+        },
+        ":hover #dice-roll-button": {
+          backgroundColor: theme.palette.primary.dark,
+        },
+        ":active #dice-roll-button": {
+          backgroundColor: theme.palette.primary.dark,
+        },
+      }}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handleRoll}
+      aria-label={`бросок: ${label}`}
+    >
+      <Box
+        component="div"
         sx={{
+          ":active": {
+            animation: `${jiggle} 0.3s infinite`,
+          },
           position: "absolute",
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
-          width: "100%",
-          height: "100%",
-          cursor: "pointer",
-          backgroundColor: "rgba(0, 0, 0, 0.25)",
-          ":focus": {
-            outline: 0,
-          },
-          ":hover #dice-roll-button": {
-            color: theme.palette.primary.contrastText,
-            width: "116px",
-            "& span": {
-              transform: "translateX(0)",
-            },
-            backgroundColor: theme.palette.primary.main,
-          },
-          ":active #dice-roll-button": {
-            backgroundColor: theme.palette.primary.dark,
-          },
         }}
-        onPointerDown={handlePointerDown}
-        onPointerUp={handleRoll}
-        aria-label="бросок"
       >
-        <Box
-          component="div"
+        <Button
           sx={{
-            ":active": {
-              animation: `${jiggle} 0.3s infinite`,
-            },
             position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            maxWidth: "calc(100% - 48px)",
+            minWidth: 0,
+            borderRadius: "20px",
+            textTransform: "none",
+            whiteSpace: "nowrap",
+            transition: theme.transitions.create("background-color"),
           }}
+          endIcon={<RollIcon />}
+          variant="contained"
+          id="dice-roll-button"
+          // @ts-ignore
+          component="div"
         >
-          <Button
+          <Box
+            component="span"
+            sx={{
+              display: "block",
+              width: textWidth,
+              minWidth: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              transition: theme.transitions.create("width"),
+            }}
+          >
+            БРОСОК: {label}
+          </Box>
+          <Box
+            component="span"
+            ref={measureRef}
+            aria-hidden
             sx={{
               position: "absolute",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              color: "transparent",
-              "& span": {
-                transform: "translate(-31px)",
-                color: theme.palette.primary.contrastText,
-                transition: theme.transitions.create("transform"),
-              },
-              transition: theme.transitions.create([
-                "width",
-                "color",
-                "background-color",
-              ]),
-              minWidth: 0,
-              width: "36px",
-              overflow: "hidden",
-              borderRadius: "20px",
+              visibility: "hidden",
+              whiteSpace: "nowrap",
             }}
-            endIcon={<RollIcon />}
-            variant="contained"
-            id="dice-roll-button"
-            // @ts-ignore
-            component="div"
           >
-            Бросок
-          </Button>
-        </Box>
-      </ButtonBase>
-      <GradientOverlay top height={wide ? 130 : 200} />
-      <Box
-        sx={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          pointerEvents: "none",
-          padding: 3,
-        }}
-        component="div"
-        ref={measureRef}
-      >
-        <Stack direction="row" justifyContent="flex-end" width="100%">
-          <Tooltip title="Очистить" disableInteractive>
-            <IconButton
-              onClick={(e) => {
-                e.stopPropagation();
-                resetPool();
-              }}
-              onPointerDown={(e) => e.stopPropagation()}
-              onPointerUp={(e) => e.stopPropagation()}
-              sx={{ pointerEvents: "all", color: "white" }}
-            >
-              <CloseIcon />
-            </IconButton>
-          </Tooltip>
-        </Stack>
+            БРОСОК: {label}
+          </Box>
+        </Button>
       </Box>
-      <TrayHeader
-        wide={wide}
-        label={label}
-        expanded={false}
-        onExpand={() => {}}
-      />
-    </>
+    </ButtonBase>
   );
 }
 
-/** While the dice roll: the difficulty can still be set, nothing else to do */
-function RollingControls() {
-  const roll = useDiceRollStore((state) => state.roll);
-  const [measureRef, wide] = useWideTray();
-
+/** Over the pool: clear it */
+function PickedButtons() {
+  const resetPool = useDiceControlsStore((state) => state.resetPool);
   return (
-    <>
-      <GradientOverlay top height={wide ? 130 : 200} />
-      <Box
-        sx={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          pointerEvents: "none",
-          padding: 3,
-        }}
-        component="div"
-        ref={measureRef}
-      />
-      <TrayHeader
-        wide={wide}
-        label={roll?.label}
-        expanded={false}
-        onExpand={() => {}}
-      />
-    </>
+    <Stack direction="row" justifyContent="flex-end" width="100%">
+      <Tooltip title="Очистить" disableInteractive>
+        <IconButton
+          onClick={(e) => {
+            e.stopPropagation();
+            resetPool();
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
+          sx={{ pointerEvents: "all", color: "white" }}
+        >
+          <CloseIcon />
+        </IconButton>
+      </Tooltip>
+    </Stack>
   );
 }
 
-function FinishedRollControls() {
-  const roll = useDiceRollStore((state) => state.roll);
+/** Over a finished roll: reroll everything or clear the tray */
+function FinishedButtons() {
   const clearRoll = useDiceRollStore((state) => state.clearRoll);
   const reroll = useDiceRollStore((state) => state.reroll);
 
-  const rollValues = useDiceRollStore((state) => state.rollValues);
-  const values = useMemo(() => {
-    const values: number[] = [];
-    for (const value of Object.values(rollValues)) {
-      if (value !== null) {
-        values.push(faceToValue(value));
-      }
-    }
-    return values;
-  }, [rollValues]);
-
-  const [resultsExpanded, setResultsExpanded] = useState(false);
-  const [measureRef, wide] = useWideTray();
-
   return (
-    <>
-      <GradientOverlay
-        top
-        height={(wide ? 130 : 200) + (resultsExpanded ? 80 : 0)}
-      />
-      <Box
-        sx={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          pointerEvents: "none",
-          padding: 3,
-        }}
-        component="div"
-        ref={measureRef}
-      >
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          width="100%"
-          alignItems="start"
-        >
-          <Tooltip title="Перебросить все" sx={{ pointerEvents: "all" }}>
-            <IconButton
-              onClick={() => {
-                // The tray and the dice may have been changed in the settings since the roll
-                const mode = getTrayMode(useSettingsStore.getState().settings);
-                const controls = useDiceControlsStore.getState();
-                reroll(undefined, undefined, {
-                  scale: mode.diceScale,
-                  tray: getTrayModelWidth(mode.width),
-                  style: controls.diceSet.dice[0].style,
-                  look: isCustomDiceSet(controls.diceSet)
-                    ? getCurrentLook(controls)
-                    : undefined,
-                });
-              }}
-              sx={{ pointerEvents: "all", color: "white" }}
-            >
-              <RerollDiceIcon />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Очистить" sx={{ pointerEvents: "all" }}>
-            <IconButton
-              onClick={() => clearRoll()}
-              sx={{ pointerEvents: "all", color: "white" }}
-            >
-              <CloseIcon />
-            </IconButton>
-          </Tooltip>
-        </Stack>
-      </Box>
-      {roll && (
-        <TrayHeader
-          wide={wide}
-          values={values}
-          label={roll.label}
-          expanded={resultsExpanded}
-          onExpand={setResultsExpanded}
-        />
-      )}
-      {roll?.hidden && (
-        <Box
-          component="div"
-          sx={{
-            position: "absolute",
-            top: wide ? 150 : 220,
-            left: "50%",
-            transform: "translateX(-50%)",
+    <Stack
+      direction="row"
+      justifyContent="space-between"
+      width="100%"
+      alignItems="start"
+    >
+      <Tooltip title="Перебросить все" sx={{ pointerEvents: "all" }}>
+        <IconButton
+          onClick={() => {
+            // The tray and the dice may have been changed in the settings since the roll
+            const mode = getTrayMode(useSettingsStore.getState().settings);
+            const controls = useDiceControlsStore.getState();
+            reroll(undefined, undefined, {
+              scale: mode.diceScale,
+              tray: getTrayModelWidth(mode.width),
+              style: controls.diceSet.dice[0].style,
+              look: isCustomDiceSet(controls.diceSet)
+                ? getCurrentLook(controls)
+                : undefined,
+            });
           }}
+          sx={{ pointerEvents: "all", color: "white" }}
         >
-          {roll.gm ? (
-            <Tooltip title="Этот бросок видит только мастер">
-              <GmIcon htmlColor="white" sx={{ pointerEvents: "all" }} />
-            </Tooltip>
-          ) : (
-            <Tooltip title="Этот бросок не видит никто">
-              <HiddenIcon htmlColor="white" sx={{ pointerEvents: "all" }} />
-            </Tooltip>
-          )}
-        </Box>
-      )}
-    </>
+          <RerollDiceIcon />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Очистить" sx={{ pointerEvents: "all" }}>
+        <IconButton
+          onClick={() => clearRoll()}
+          sx={{ pointerEvents: "all", color: "white" }}
+        >
+          <CloseIcon />
+        </IconButton>
+      </Tooltip>
+    </Stack>
   );
 }
