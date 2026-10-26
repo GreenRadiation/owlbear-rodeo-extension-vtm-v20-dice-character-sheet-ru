@@ -95,9 +95,8 @@ export function RollHistoryButton({
           py={1}
           maxHeight="80vh"
           overflow="auto"
-          // The width the player asked for, in characters of the font
-          width={`calc(${lineLength} * 0.6em + 24px)`}
-          maxWidth="90vw"
+          // As wide as the longest line, up to the width the player asked for in characters of the font
+          maxWidth={`min(calc(${lineLength} * 0.6em + 24px), 90vw)`}
         >
           {rolls.length === 0 && (
             <Typography color="text.secondary">Бросков пока нет</Typography>
@@ -149,7 +148,8 @@ function HistoryLine({
     }
     // Measure at the full size, the last text may have been shrunk
     element.style.fontSize = "";
-    const overflow = element.scrollWidth - element.clientWidth;
+    // A pixel of rounding is no overflow
+    const overflow = element.scrollWidth - element.clientWidth - 1;
     if (fit === "shrink") {
       if (overflow > 0) {
         element.style.fontSize = `${
@@ -173,8 +173,9 @@ function HistoryLine({
         px: 0.5,
         mx: -0.5,
         width: "calc(100% + 8px)",
-        // The height of a line of the full font, a shrunk line stays as tall
-        minHeight: "1.5em",
+        // The height of a line of the full font: a shrunk line stays as tall,
+        // so the list doesn't jump when a line flips to its values
+        height: "1.5rem",
       }}
     >
       <Typography
@@ -183,7 +184,7 @@ function HistoryLine({
         color={color}
         noWrap
         width="100%"
-        sx={{ transition: "font-size 0.15s" }}
+        sx={{ lineHeight: "1.5rem", transition: "font-size 0.15s" }}
       >
         {text}
       </Typography>

@@ -152,7 +152,7 @@ export const defaultSettings: Settings = {
   previewLastOnly: false,
   hiddenPreviews: [],
   historyLength: 8,
-  historyLineLength: 30,
+  historyLineLength: 15,
   historyFit: "shrink",
   sheetOpen: false,
   collapsed: false,
@@ -168,8 +168,9 @@ export const defaultSettings: Settings = {
  * Version of the stored settings.
  * 1: the width of the tray was relative to the original tray, 2 was a square.
  * 2: the width of the tray is relative to its height, 1 is a square.
+ * 3: the width of a line of the history defaults to 15 characters, 30 was too wide.
  */
-const VERSION = 2;
+const VERSION = 3;
 
 const STORAGE_KEY = getPluginId("settings");
 
@@ -230,15 +231,22 @@ function sanitizeMode(value: unknown, fallback: TrayMode): TrayMode {
 
 /** Bring the settings stored by an older version of the extension up to date */
 function migrate(stored: Stored): Stored {
-  if (stored.version === VERSION) {
+  const version = typeof stored.version === "number" ? stored.version : 1;
+  if (version >= VERSION) {
     return stored;
   }
   const migrated = { ...stored };
-  for (const key of ["small", "large"]) {
-    const mode = asRecord(stored[key]);
-    if (typeof mode.width === "number") {
-      migrated[key] = { ...mode, width: mode.width / 2 };
+  if (version < 2) {
+    for (const key of ["small", "large"]) {
+      const mode = asRecord(stored[key]);
+      if (typeof mode.width === "number") {
+        migrated[key] = { ...mode, width: mode.width / 2 };
+      }
     }
+  }
+  if (version < 3) {
+    // Back to the new default, the old one was saved for a day at most
+    delete migrated.historyLineLength;
   }
   return migrated;
 }

@@ -28,7 +28,7 @@ describe("settings", () => {
 
   it("keeps valid values and clamps the rest", () => {
     const settings = sanitizeSettings({
-      version: 2,
+      version: 3,
       small: {
         height: 400,
         width: 1,
@@ -114,6 +114,15 @@ describe("settings", () => {
     // Settings of the current version are left alone
     const current = sanitizeSettings({ version: 2, small: { width: 1.2 } });
     expect(current.small.width).toBe(1.2);
+  });
+
+  it("forgets the width of the line of the history of the previous version", () => {
+    expect(
+      sanitizeSettings({ version: 2, historyLineLength: 30 }).historyLineLength
+    ).toBe(defaultSettings.historyLineLength);
+    expect(
+      sanitizeSettings({ version: 3, historyLineLength: 30 }).historyLineLength
+    ).toBe(30);
   });
 
   it("reads the settings of the first version", () => {
