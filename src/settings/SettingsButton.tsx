@@ -46,6 +46,8 @@ import {
   MIN_TRAY_HEIGHT,
   MIN_TRAY_WIDTH,
   MAX_HISTORY_LENGTH,
+  MAX_HISTORY_LINE_LENGTH,
+  MIN_HISTORY_LINE_LENGTH,
   MAX_PREVIEW_HEIGHT,
   MIN_HISTORY_LENGTH,
   MIN_PREVIEW_HEIGHT,
@@ -392,6 +394,43 @@ function Settings({ onClose }: { onClose: () => void }) {
           Сколько последних бросков показывает кнопка истории, у тебя и у других
           игроков. Комната хранит по {MAX_HISTORY_LENGTH} бросков на игрока
           независимо от этой настройки.
+        </Typography>
+        <Setting
+          label="Символов в строке истории"
+          value={settings.historyLineLength}
+          format={(value) => `${value}`}
+          min={MIN_HISTORY_LINE_LENGTH}
+          max={MAX_HISTORY_LINE_LENGTH}
+          step={1}
+          onChange={(historyLineLength) =>
+            changeSettings({ historyLineLength })
+          }
+        />
+        <Stack direction="row" alignItems="center" gap={1}>
+          <Typography flex={1} noWrap>
+            Строка длиннее
+          </Typography>
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            aria-label="Строка истории длиннее предела"
+            value={settings.historyFit}
+            onChange={(_, historyFit) =>
+              historyFit && changeSettings({ historyFit })
+            }
+          >
+            <ToggleButton value="shrink" sx={{ py: 0.25 }}>
+              Мельче шрифт
+            </ToggleButton>
+            <ToggleButton value="tooltip" sx={{ py: 0.25 }}>
+              Обрезать
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Stack>
+        <Typography variant="caption" color="text.secondary">
+          Ширина списка истории в символах. Строка, которая не влезает, либо
+          пишется шрифтом помельче, либо обрезается, и тогда полный текст
+          всплывает при наведении.
         </Typography>
       </Stack>
       <Divider />

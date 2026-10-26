@@ -11,6 +11,8 @@ import {
 } from "../v20/roll";
 
 export type SheetPlacement = "below" | "right";
+export type HistoryFit = "shrink" | "tooltip";
+const HISTORY_FITS: HistoryFit[] = ["shrink", "tooltip"];
 
 /**
  * The tray has two modes, small and large, that the player switches between
@@ -61,6 +63,10 @@ export interface Settings {
    * Only what is shown: the room keeps MAX_HISTORY_ROLLS of them for everyone.
    */
   historyLength: number;
+  /** Width of a line of the history in characters */
+  historyLineLength: number;
+  /** What happens to a line of the history longer than that: a smaller font, or cut with the whole text in a tooltip */
+  historyFit: HistoryFit;
   /** If the character sheet is shown */
   sheetOpen: boolean;
   /**
@@ -95,6 +101,8 @@ export const PREVIEW_HEIGHT_STEP = 20;
 
 export const MIN_HISTORY_LENGTH = 1;
 export const MAX_HISTORY_LENGTH = MAX_HISTORY_ROLLS;
+export const MIN_HISTORY_LINE_LENGTH = 12;
+export const MAX_HISTORY_LINE_LENGTH = 60;
 
 export const MIN_SHEET_SIZE = 200;
 export const MAX_SHEET_SIZE = 1600;
@@ -144,6 +152,8 @@ export const defaultSettings: Settings = {
   previewLastOnly: false,
   hiddenPreviews: [],
   historyLength: 8,
+  historyLineLength: 30,
+  historyFit: "shrink",
   sheetOpen: false,
   collapsed: false,
   foldedSections: [],
@@ -285,6 +295,17 @@ export function sanitizeSettings(value: unknown): Settings {
         d.historyLength
       )
     ),
+    historyLineLength: Math.round(
+      clamp(
+        stored.historyLineLength,
+        MIN_HISTORY_LINE_LENGTH,
+        MAX_HISTORY_LINE_LENGTH,
+        d.historyLineLength
+      )
+    ),
+    historyFit: HISTORY_FITS.includes(stored.historyFit as HistoryFit)
+      ? (stored.historyFit as HistoryFit)
+      : d.historyFit,
     sheetOpen:
       typeof stored.sheetOpen === "boolean" ? stored.sheetOpen : d.sheetOpen,
     collapsed:
