@@ -12,10 +12,10 @@ export function getHistoryKey(playerId: string) {
   return getPluginId(`history/${playerId}`);
 }
 
-async function recordRoll(values: number[]) {
+async function recordRoll(values: number[], label?: string) {
   const key = getHistoryKey(OBR.player.id);
   const metadata = await OBR.room.getMetadata();
-  let history = pushRoll(metadata[key], values);
+  let history = pushRoll(metadata[key], values, label);
   // Keep fewer rolls if the room is running out of space
   while (!fitsInRoom(metadata, { [key]: history })) {
     const rolls = decodeHistory(history).length;
@@ -23,7 +23,7 @@ async function recordRoll(values: number[]) {
       console.warn("No space left in the room metadata for the roll history");
       return;
     }
-    history = pushRoll(metadata[key], values, Math.floor(rolls / 2));
+    history = pushRoll(metadata[key], values, label, Math.floor(rolls / 2));
   }
   await OBR.room.setMetadata({ [key]: history });
 }
@@ -55,7 +55,9 @@ export function RollHistorySync() {
       }
       recorded = signature;
       const values = entries.map(([_, value]) => faceToValue(value as number));
-      recordRoll(values).catch((error) => console.error(error));
+      const label =
+        typeof state.roll.label === "string" ? state.roll.label : undefined;
+      recordRoll(values, label).catch((error) => console.error(error));
     });
   }, []);
 

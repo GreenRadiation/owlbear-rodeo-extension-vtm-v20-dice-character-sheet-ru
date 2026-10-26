@@ -48,6 +48,13 @@ interface DiceRollState {
     current?: Pick<DiceRoll, "scale" | "tray" | "look"> & { style: DiceStyle }
   ) => void;
   finishDieRoll: (id: string, number: number, transform: DiceTransform) => void;
+  /**
+   * Show a hidden roll to everyone: the same dice are thrown again with the
+   * same throws, and the deterministic physics lands them the same way for
+   * everyone. New ids make the dice new physics objects, for the player who
+   * rolled and for everyone watching.
+   */
+  revealRoll: () => void;
   setDifficulty: (difficulty: number) => void;
   setSpecialty: (specialty: boolean) => void;
 }
@@ -131,6 +138,29 @@ export const useDiceRollStore = create<DiceRollState>()(
         }
       });
     },
+    revealRoll: () =>
+      set((state) => {
+        if (!state.roll?.hidden) {
+          return;
+        }
+        state.roll.hidden = false;
+        state.roll.gm = false;
+        const trayWidth = state.roll.tray || 1;
+        for (const die of state.roll.dice) {
+          if (isDie(die)) {
+            const dieThrow = state.rollThrows[die.id];
+            delete state.rollValues[die.id];
+            delete state.rollTransforms[die.id];
+            delete state.rollThrows[die.id];
+            const id = generateDiceId();
+            die.id = id;
+            state.rollValues[id] = null;
+            state.rollTransforms[id] = null;
+            state.rollThrows[id] =
+              dieThrow || getRandomDiceThrow(undefined, trayWidth);
+          }
+        }
+      }),
     finishDieRoll: (id, number, transform) => {
       set((state) => {
         state.rollValues[id] = number;

@@ -64,6 +64,7 @@ interface DiceControlsState {
   addToPool: (count: number, name?: string) => void;
   /** Switch to the next kind of visibility, the GM has no use for rolls only the GM sees */
   cycleVisibility: (gm?: boolean) => void;
+  setVisibility: (visibility: Visibility) => void;
   setDiceRollPressTime: (time: number | null) => void;
 }
 
@@ -164,6 +165,11 @@ export const useDiceControlsStore = create<DiceControlsState>()(
           : VISIBILITIES;
         const index = choices.indexOf(state.visibility);
         state.visibility = choices[(index + 1) % choices.length];
+      });
+    },
+    setVisibility(visibility) {
+      set((state) => {
+        state.visibility = visibility;
       });
     },
     setDiceRollPressTime(time) {
