@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   MAX_HISTORY_ROLLS,
-  MAX_LABEL_LENGTH,
+  MAX_LABEL_PART_LENGTH,
+  ROLL_NAMES,
+  decodeLabel,
+  encodeLabel,
   decodeHistory,
   decodeRoll,
   encodeRoll,
@@ -26,9 +29,9 @@ describe("roll encoding", () => {
     expect(encodeRoll(Array(16).fill(10))).toHaveLength(16);
   });
 
-  it("keeps what was rolled after the values", () => {
+  it("keeps what was rolled after the values, by index", () => {
     const roll = encodeRoll([7, 3], "Сила + Атлетика + 2d10");
-    expect(roll).toBe("73|Сила + Атлетика + 2d10");
+    expect(roll).toBe("73|0+9+x2");
     expect(decodeRoll(roll)).toEqual({
       values: [7, 3],
       label: "Сила + Атлетика + 2d10",
@@ -37,13 +40,39 @@ describe("roll encoding", () => {
     expect(encodeRoll([7, 3], "   ")).toBe("73");
   });
 
-  it("keeps the separators out of the label and the label short", () => {
-    expect(decodeRoll(encodeRoll([5], "a,b|c"))).toEqual({
+  it("knows everything of the sheet that can be rolled", () => {
+    expect(ROLL_NAMES.indexOf("Сила")).toBe(0);
+    expect(ROLL_NAMES).toContain("Атлетика");
+    expect(ROLL_NAMES).toContain("Смелость");
+    expect(ROLL_NAMES).toContain("Воля");
+    expect(ROLL_NAMES).toContain("Человечность");
+    expect(ROLL_NAMES).toContain("Анимализм");
+    expect(ROLL_NAMES).toContain("Путь Смерти и Души");
+    // Every name is found back by its index
+    for (const name of ROLL_NAMES) {
+      expect(decodeLabel(encodeLabel(name))).toBe(name);
+    }
+    expect(new Set(ROLL_NAMES).size).toBe(ROLL_NAMES.length);
+  });
+
+  it("writes a trait the player typed in as text", () => {
+    expect(encodeLabel("Кунг-фу + d10")).toBe("~Кунг-фу+x1");
+    expect(decodeLabel("~Кунг-фу+x1")).toBe("Кунг-фу + d10");
+    // Text that looks like a code is still text
+    expect(decodeLabel(encodeLabel("12 + x2"))).toBe("12 + x2");
+  });
+
+  it("keeps the separators out of the text and the text short", () => {
+    expect(decodeRoll(encodeRoll([5], "a,b|c+d~e"))).toEqual({
       values: [5],
-      label: "a b c",
+      label: "a b c d e",
     });
-    const long = encodeRoll([5], "x".repeat(200));
-    expect(decodeRoll(long).label).toHaveLength(MAX_LABEL_LENGTH);
+    const long = encodeRoll([5], "ы".repeat(200));
+    expect(decodeRoll(long).label).toHaveLength(MAX_LABEL_PART_LENGTH);
+  });
+
+  it("drops what it doesn't know", () => {
+    expect(decodeLabel("99999+0+?+x0")).toBe("Сила");
   });
 });
 
@@ -55,7 +84,7 @@ describe("history", () => {
 
   it("adds the newest roll to the end", () => {
     expect(pushRoll("72", [10, 4])).toBe("72,04");
-    expect(pushRoll("72", [10, 4], "Сила")).toBe("72,04|Сила");
+    expect(pushRoll("72", [10, 4], "Сила")).toBe("72,04|0");
   });
 
   it("drops the oldest rolls over the limit", () => {
@@ -71,7 +100,7 @@ describe("history", () => {
   });
 
   it("decodes the rolls oldest first", () => {
-    expect(decodeHistory("72,04|Сила")).toEqual([
+    expect(decodeHistory("72,04|0")).toEqual([
       { values: [7, 2] },
       { values: [10, 4], label: "Сила" },
     ]);
@@ -80,7 +109,7 @@ describe("history", () => {
   it("ignores anything unexpected", () => {
     expect(decodeHistory(undefined)).toEqual([]);
     expect(decodeHistory(42)).toEqual([]);
-    expect(decodeHistory("7x2,,|что")).toEqual([{ values: [7, 2] }]);
+    expect(decodeHistory("7x2,,|0")).toEqual([{ values: [7, 2] }]);
   });
 
   it("stays small enough for the room metadata", () => {
